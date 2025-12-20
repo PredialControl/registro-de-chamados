@@ -1,15 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Dummy values for build time to prevent "Invalid URL" errors
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     if (process.env.NODE_ENV === 'production') {
-        console.warn('⚠️ Supabase credentials missing! Deployment might fail or functionality will be limited.');
+        console.warn('⚠️ Supabase credentials missing during build. Ensure they are set in your environment variables.');
     }
 }
 
-// Fallback to avoid crash during build if env vars are missing
-export const supabase = supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : (null as any); 
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
