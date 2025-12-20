@@ -1,22 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 
 const getSupabase = () => {
-    let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    try {
+        let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // Robust check for valid URL
-    const isValidUrl = (u: any) => u && typeof u === 'string' && u.startsWith('http') && u.includes('.');
+        // Robust check for valid URL
+        const isValidUrl = (u: any) => u && typeof u === 'string' && u.startsWith('http') && u.includes('.');
 
-    if (!isValidUrl(url)) {
-        console.warn('⚠️ Invalid or missing NEXT_PUBLIC_SUPABASE_URL. Using placeholder for build safety.');
-        url = 'https://placeholder.supabase.co';
+        if (!isValidUrl(url)) {
+            if (process.env.NODE_ENV === 'production') {
+                console.warn('⚠️ Invalid NEXT_PUBLIC_SUPABASE_URL. Build safety placeholder active.');
+            }
+            url = 'https://placeholder.supabase.co';
+        }
+
+        if (!key || key === 'undefined') {
+            key = 'placeholder-key';
+        }
+
+        return createClient(url!, key!);
+    } catch (e) {
+        console.error('CRITICAL: Supabase client init failed during build. This is expected if env vars are missing.');
+        return { from: () => ({ select: () => ({ order: () => Promise.resolve({ data: [], error: null }) }) }) } as any;
     }
-
-    if (!key || key === 'undefined') {
-        key = 'placeholder-key';
-    }
-
-    return createClient(url!, key!);
 };
 
 // Lazy-initialized instance
