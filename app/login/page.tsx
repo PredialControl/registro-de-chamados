@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -19,44 +18,6 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
     const router = useRouter();
-
-    // DIAGNOSTIC CODE
-    const [debugStatus, setDebugStatus] = useState<string>('Verificando conexão...');
-    const [debugColor, setDebugColor] = useState<string>('text-yellow-500');
-    const [envCheck, setEnvCheck] = useState<string>('');
-
-    useEffect(() => {
-        const checkConnection = async () => {
-            const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-            const envMsg = `URL: ${url ? url.substring(0, 15) + '...' : 'NÃO DEFINIDA'} | Key: ${key ? 'DEFINIDA' : 'NÃO DEFINIDA'}`;
-            setEnvCheck(envMsg);
-
-            if (!url || !key) {
-                setDebugStatus('ERRO: Variáveis de Ambiente ausentes na Vercel.');
-                setDebugColor('text-red-500 font-bold');
-                return;
-            }
-
-            try {
-                const { error } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
-
-                if (error) {
-                    setDebugStatus(`ERRO DE CONEXÃO: ${error.message} (${error.code})`);
-                    setDebugColor('text-red-500 font-bold');
-                } else {
-                    setDebugStatus('Conexão com Supabase: OK (Tabelas acessíveis)');
-                    setDebugColor('text-green-500 font-bold');
-                }
-            } catch (err: any) {
-                setDebugStatus(`ERRO CRÍTICO: ${err.message || err}`);
-                setDebugColor('text-red-500 font-bold');
-            }
-        };
-
-        checkConnection();
-    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -68,16 +29,10 @@ export default function LoginPage() {
             if (success) {
                 router.push('/');
             } else {
-                toast.error('E-mail não encontrado ou erro de conexão.');
-                // Force re-check
-                const { error } = await supabase.from('profiles').select('*').eq('email', email).single();
-                if (error) {
-                    setDebugStatus(`FALHA AO BUSCAR USER: ${error.message}`);
-                    setDebugColor('text-red-500 font-bold');
-                }
+                toast.error('E-mail ou senha inválidos.');
             }
         } catch (err) {
-            toast.error('Erro ao tentar entrar');
+            toast.error('Ocorreu um erro ao tentar entrar.');
         } finally {
             setIsLoading(false);
         }
@@ -96,14 +51,6 @@ export default function LoginPage() {
                     </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-
-                    {/* DEBUG PANEL */}
-                    <div className="p-3 bg-muted/50 rounded-md text-xs font-mono border border-border">
-                        <p className="font-bold mb-1">Status do Sistema:</p>
-                        <p className="mb-1 text-muted-foreground">{envCheck}</p>
-                        <p className={debugColor}>{debugStatus}</p>
-                    </div>
-
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="email">E-mail</Label>
@@ -136,11 +83,6 @@ export default function LoginPage() {
                             )}
                         </Button>
                     </form>
-                    <div className="text-center text-xs text-muted-foreground pt-4">
-                        <p>Credenciais de Teste:</p>
-                        <p>Admin: admin@sistema.com</p>
-                        <p>Usuário: joao@usuario.com</p>
-                    </div>
                 </CardContent>
             </Card>
         </div>
