@@ -22,6 +22,14 @@ import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 export const metadata: Metadata = {
   title: "Gestor de Chamados",
   description: "Sistema de gestão de chamados prediais",
+  manifest: "/manifest.json",
+  themeColor: "#000000",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Gestor de Chamados",
+  },
 };
 
 export default function RootLayout({
