@@ -4,7 +4,12 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Supabase URL or Anon Key is missing. Check your .env.local file.');
+    if (process.env.NODE_ENV === 'production') {
+        console.warn('⚠️ Supabase credentials missing! Deployment might fail or functionality will be limited.');
+    }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Fallback to avoid crash during build if env vars are missing
+export const supabase = supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : (null as any); 
