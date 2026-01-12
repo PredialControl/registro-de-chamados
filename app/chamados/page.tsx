@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { dataService } from '@/lib/data';
 import { Ticket, Building, User } from '@/lib/mockData';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon } from 'lucide-react';
+import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon, Edit2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,8 @@ export default function ChamadosPage() {
   const [editingTicketId, setEditingTicketId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Ticket>>({});
   const [selectedTicketForGallery, setSelectedTicketForGallery] = useState<Ticket | null>(null);
+  const [editingTicketNumberId, setEditingTicketNumberId] = useState<string | null>(null);
+  const [editingTicketNumberValue, setEditingTicketNumberValue] = useState('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -163,6 +165,25 @@ export default function ChamadosPage() {
       } catch (error) {
         toast.error('Erro ao excluir chamado.');
       }
+    }
+  };
+
+  const handleSaveTicketNumber = async (ticketId: string) => {
+    if (!editingTicketNumberValue.trim()) {
+      toast.error('Informe o número do chamado');
+      return;
+    }
+    try {
+      await dataService.updateTicket(ticketId, {
+        externalTicketId: editingTicketNumberValue,
+        isRegistered: true
+      });
+      setEditingTicketNumberId(null);
+      setEditingTicketNumberValue('');
+      await loadData();
+      toast.success('Número atualizado!');
+    } catch (error) {
+      toast.error('Erro ao atualizar número.');
     }
   };
 
@@ -374,13 +395,65 @@ export default function ChamadosPage() {
                         isEditing && "bg-accent/50",
                         isAdmin && "cursor-pointer"
                       )}
-                      onClick={() => isAdmin && !isEditing && startEdit(ticket)}
+                      onClick={() => isAdmin && !isEditing && !editingTicketNumberId && startEdit(ticket)}
                     >
-                      <td className="px-3 py-4 font-bold text-xs border-x border-border/50">
-                        {ticket.isRegistered && ticket.externalTicketId ? (
-                          <span className="text-blue-600 dark:text-blue-400">{ticket.externalTicketId}</span>
+                      <td className="px-3 py-4 font-bold text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {editingTicketNumberId === ticket.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              value={editingTicketNumberValue}
+                              onChange={e => setEditingTicketNumberValue(e.target.value)}
+                              placeholder="Número..."
+                              className="h-7 text-xs w-24 px-1.5"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveTicketNumber(ticket.id);
+                                if (e.key === 'Escape') {
+                                  setEditingTicketNumberId(null);
+                                  setEditingTicketNumberValue('');
+                                }
+                              }}
+                            />
+                            <Button
+                              size="icon-sm"
+                              onClick={() => handleSaveTicketNumber(ticket.id)}
+                              className="h-7 w-7 bg-green-600 hover:bg-green-700"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingTicketNumberId(null);
+                                setEditingTicketNumberValue('');
+                              }}
+                              className="h-7 w-7"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         ) : (
-                          <span className="text-red-600 dark:text-red-500 tracking-[0.2em] font-black">**********</span>
+                          <div className="flex items-center gap-1">
+                            {ticket.externalTicketId ? (
+                              <span className="text-blue-600 dark:text-blue-400">{ticket.externalTicketId}</span>
+                            ) : (
+                              <span className="text-red-600 dark:text-red-500 tracking-widest font-black text-[10px]">SEM Nº</span>
+                            )}
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingTicketNumberId(ticket.id);
+                                  setEditingTicketNumberValue(ticket.externalTicketId || '');
+                                }}
+                                className="text-muted-foreground hover:text-blue-600 transition-colors"
+                                title={ticket.externalTicketId ? "Editar número" : "Adicionar número"}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
 
