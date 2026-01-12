@@ -112,10 +112,20 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
     const selectedBuilding = buildings.find(b => b.id === selectedBuildingId);
 
     try {
+      console.log('📂 Lendo arquivo:', file.name, 'Tamanho:', file.size, 'bytes');
+
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      console.log('✅ ArrayBuffer criado:', data.byteLength, 'bytes');
+
+      const workbook = XLSX.read(data, { type: 'array' });
+      console.log('✅ Workbook lido. Planilhas:', workbook.SheetNames);
+
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      console.log('✅ Planilha selecionada:', workbook.SheetNames[0]);
+
       const jsonData: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet);
+      console.log('✅ Dados convertidos para JSON:', jsonData.length, 'linhas');
+      console.log('📋 Primeira linha (exemplo):', jsonData[0]);
 
       const parsed: ParsedTicket[] = jsonData.map((row, index) => {
         const ticket: ParsedTicket = {
@@ -150,10 +160,14 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
       } else {
         toast.success(`${valid} chamados prontos para importar!`);
       }
-    } catch (error) {
-      console.error('Erro ao ler Excel:', error);
-      toast.error('Erro ao ler arquivo Excel');
+    } catch (error: any) {
+      console.error('❌ Erro ao ler Excel:', error);
+      const errorMessage = error?.message || 'Erro desconhecido';
+      toast.error(`Erro ao ler Excel: ${errorMessage}`, { duration: 5000 });
     }
+
+    // Limpar input
+    e.target.value = '';
   };
 
   const handleImport = async () => {
