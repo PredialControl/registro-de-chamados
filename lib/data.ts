@@ -41,26 +41,33 @@ export const dataService = {
     // --- OFFLINE SYNC ---
     getSyncQueue: (): any[] => {
         if (typeof window === 'undefined') return [];
-        const queue = localStorage.getItem(STORAGE_KEYS.SYNC_QUEUE);
-        return queue ? JSON.parse(queue) : [];
+        try {
+            const queue = localStorage.getItem(STORAGE_KEYS.SYNC_QUEUE);
+            return queue ? JSON.parse(queue) : [];
+        } catch (error) {
+            console.error('Erro ao ler fila de sincronização:', error);
+            return [];
+        }
     },
 
     addToSyncQueue: (ticketData: any) => {
+        const pendingTicket = {
+            ...ticketData,
+            tempId: Date.now().toString(),
+            queuedAt: new Date().toISOString()
+        };
+
         try {
             const queue = dataService.getSyncQueue();
-            const pendingTicket = {
-                ...ticketData,
-                tempId: Date.now().toString(),
-                queuedAt: new Date().toISOString()
-            };
             queue.push(pendingTicket);
             localStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(queue));
             console.log('✅ Ticket adicionado à fila offline:', pendingTicket.tempId);
-            return pendingTicket;
         } catch (error) {
             console.error('❌ Erro ao salvar ticket na fila offline:', error);
-            throw new Error('Não foi possível salvar o chamado localmente. Verifique o armazenamento do navegador.');
+            console.warn('⚠️ Ticket criado mas não foi salvo para sincronização. Será perdido ao recarregar a página.');
         }
+
+        return pendingTicket;
     },
 
     clearSyncQueue: () => {

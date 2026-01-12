@@ -83,6 +83,7 @@ export default function TicketPage() {
     const loadingToast = toast.loading('Enviando chamado...');
 
     try {
+      console.log('📝 Iniciando criação de chamado...');
       const result = await dataService.createTicket({
         buildingId: selectedBuilding,
         userId: user.id,
@@ -90,6 +91,8 @@ export default function TicketPage() {
         description,
         photoUrls: photoPreviews,
       });
+
+      console.log('✅ Resultado:', result);
 
       if (result.wasOffline) {
         toast.success(
@@ -109,9 +112,10 @@ export default function TicketPage() {
       setDescription('');
       setPhotoPreviews([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (error) {
-      console.error('Error submitting ticket:', error);
-      toast.error('Erro ao salvar chamado. Verifique o armazenamento do navegador.', { id: loadingToast });
+    } catch (error: any) {
+      console.error('❌ Error submitting ticket:', error);
+      const errorMessage = error?.message || 'Erro desconhecido ao salvar chamado';
+      toast.error(`Erro: ${errorMessage}`, { id: loadingToast, duration: 5000 });
     } finally {
       setIsSubmitting(false);
     }
