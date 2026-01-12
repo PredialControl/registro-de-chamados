@@ -30,6 +30,8 @@ export default function AdminPage() {
   const [registrationFilter, setRegistrationFilter] = useState<'pending' | 'all'>('pending');
   const [registeringTicketId, setRegisteringTicketId] = useState<string | null>(null);
   const [externalIdInput, setExternalIdInput] = useState('');
+  const [editingTicketNumberId, setEditingTicketNumberId] = useState<string | null>(null);
+  const [editingTicketNumberValue, setEditingTicketNumberValue] = useState('');
 
   // Form states
   const [showBuildingForm, setShowBuildingForm] = useState(false);
@@ -88,6 +90,21 @@ export default function AdminPage() {
     setExternalIdInput('');
     await loadData();
     toast.success('Chamado registrado!');
+  };
+
+  const handleSaveTicketNumber = async (ticketId: string) => {
+    if (!editingTicketNumberValue.trim()) {
+      toast.error('Informe o número do chamado');
+      return;
+    }
+    await dataService.updateTicket(ticketId, {
+      externalTicketId: editingTicketNumberValue,
+      isRegistered: true
+    });
+    setEditingTicketNumberId(null);
+    setEditingTicketNumberValue('');
+    await loadData();
+    toast.success('Número atualizado!');
   };
 
   const handleDeleteBuilding = async (id: string) => {
@@ -359,22 +376,59 @@ export default function AdminPage() {
                           return (
                             <tr key={ticket.id} className="hover:bg-muted/30 transition-colors bg-background">
                               <td className="px-3 py-4 text-xs font-bold border-x border-border/50">
-                                {ticket.isRegistered && ticket.externalTicketId ? (
+                                {editingTicketNumberId === ticket.id ? (
                                   <div className="flex items-center gap-1">
-                                    <div className="text-blue-600">{ticket.externalTicketId}</div>
+                                    <Input
+                                      value={editingTicketNumberValue}
+                                      onChange={e => setEditingTicketNumberValue(e.target.value)}
+                                      placeholder="Número..."
+                                      className="h-7 text-xs w-24 px-1.5"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveTicketNumber(ticket.id);
+                                        if (e.key === 'Escape') {
+                                          setEditingTicketNumberId(null);
+                                          setEditingTicketNumberValue('');
+                                        }
+                                      }}
+                                    />
+                                    <Button
+                                      size="icon-sm"
+                                      onClick={() => handleSaveTicketNumber(ticket.id)}
+                                      className="h-7 w-7 bg-green-600 hover:bg-green-700"
+                                    >
+                                      <Save className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button
+                                      size="icon-sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setEditingTicketNumberId(null);
+                                        setEditingTicketNumberValue('');
+                                      }}
+                                      className="h-7 w-7"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    {ticket.externalTicketId ? (
+                                      <div className="text-blue-600">{ticket.externalTicketId}</div>
+                                    ) : (
+                                      <div className="text-red-600 tracking-widest font-black text-[10px]">SEM Nº</div>
+                                    )}
                                     <button
                                       onClick={() => {
-                                        setRegisteringTicketId(ticket.id);
-                                        setExternalIdInput(ticket.externalTicketId || '');
+                                        setEditingTicketNumberId(ticket.id);
+                                        setEditingTicketNumberValue(ticket.externalTicketId || '');
                                       }}
                                       className="text-muted-foreground hover:text-blue-600 transition-colors"
-                                      title="Editar número do chamado"
+                                      title={ticket.externalTicketId ? "Editar número" : "Adicionar número"}
                                     >
                                       <Edit2 className="w-3 h-3" />
                                     </button>
                                   </div>
-                                ) : (
-                                  <div className="text-red-600 tracking-widest font-black">**********</div>
                                 )}
                                 <div className="text-[9px] text-muted-foreground font-normal mt-0.5">{ticketUser?.name}</div>
                               </td>
@@ -397,38 +451,6 @@ export default function AdminPage() {
                               </td>
                               <td className="px-3 py-4 text-center text-[10px] text-muted-foreground border-x border-border/50 font-medium">
                                 {formatDate(ticket.createdAt)}
-                              </td>
-                              <td className="px-3 py-4 text-center border-x border-border/50">
-                                {registeringTicketId === ticket.id ? (
-                                  <div className="flex gap-1 animate-in zoom-in-95">
-                                    <Input
-                                      value={externalIdInput}
-                                      onChange={e => setExternalIdInput(e.target.value)}
-                                      placeholder="ID..."
-                                      className="h-7 text-xs w-24 px-1.5"
-                                      autoFocus
-                                    />
-                                    <Button size="icon-sm" onClick={() => handleRegisterExternalId(ticket.id)} className="h-7 w-7 bg-green-600">
-                                      <Save className="w-3.5 h-3.5" />
-                                    </Button>
-                                    <Button size="icon-sm" variant="ghost" onClick={() => setRegisteringTicketId(null)} className="h-7 w-7">
-                                      <X className="w-3.5 h-3.5" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  !ticket.isRegistered ? (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => { setRegisteringTicketId(ticket.id); setExternalIdInput(''); }}
-                                      className="h-7 text-[10px] font-bold border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
-                                    >
-                                      REGISTRAR
-                                    </Button>
-                                  ) : (
-                                    <div className="text-[10px] text-green-600 font-bold">✓ REGISTRADO</div>
-                                  )
-                                )}
                               </td>
                               <td className="px-3 py-4 text-center border-x border-border/50 font-medium text-xs text-blue-600">
                                 {ticket.deadline ? formatDate(ticket.deadline) : '--'}
