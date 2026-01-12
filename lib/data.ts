@@ -427,5 +427,34 @@ export const dataService = {
             .eq('id', ticketId);
 
         if (error) console.error('Error deleting ticket:', error);
+    },
+
+    // Importação de chamados (permite setar created_at e status customizado)
+    importTicket: async (ticketData: {
+        buildingId: string;
+        userId: string;
+        location: string;
+        description: string;
+        photoUrls: string[];
+        status: string;
+        createdAt: string;
+        deadline?: string;
+        externalTicketId?: string;
+    }): Promise<void> => {
+        const { error } = await supabase
+            .from('tickets')
+            .insert({
+                building_id: ticketData.buildingId,
+                user_id: ticketData.userId,
+                location: ticketData.location,
+                description: ticketData.description,
+                photo_urls: ticketData.photoUrls,
+                status: ticketData.status,
+                created_at: ticketData.createdAt,
+                deadline: ticketData.deadline,
+                external_ticket_id: ticketData.externalTicketId,
+            });
+
+        if (error) throw error;
     }
 };

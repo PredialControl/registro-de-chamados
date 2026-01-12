@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Plus, Trash2, Edit2, CheckCircle, Clock, AlertCircle, X, Save, ArrowLeft, Download, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { ImportTickets } from '@/components/ImportTickets';
 
 export default function AdminPage() {
   const { user, isLoading, refreshUser } = useAuth();
@@ -258,10 +259,11 @@ export default function AdminPage() {
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 mb-4">
+        <TabsList className="grid w-full grid-cols-4 mb-4">
           <TabsTrigger value="chamados">Chamados</TabsTrigger>
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
           <TabsTrigger value="predios">Prédios</TabsTrigger>
+          <TabsTrigger value="importar">Importar</TabsTrigger>
         </TabsList>
 
         {/* CHAMADOS TAB */}
@@ -608,6 +610,15 @@ export default function AdminPage() {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        {/* IMPORTAR TAB */}
+        <TabsContent value="importar" className="space-y-4">
+          <ImportTickets
+            buildings={buildings}
+            userId={user?.id || ''}
+            onImportComplete={loadData}
+          />
         </TabsContent>
       </Tabs>
       {/* Gallery Modal */}
