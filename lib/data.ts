@@ -74,16 +74,21 @@ export const dataService = {
         localStorage.removeItem(STORAGE_KEYS.SYNC_QUEUE);
     },
 
-    syncPendingTickets: async (): Promise<void> => {
+    syncPendingTickets: async (): Promise<{ synced: number; failed: number }> => {
         const queue = dataService.getSyncQueue();
-        if (queue.length === 0) return;
+        if (queue.length === 0) {
+            console.log('📭 Nenhum chamado pendente para sincronizar');
+            return { synced: 0, failed: 0 };
+        }
 
-        console.log(`Attempting to sync ${queue.length} pending tickets...`);
+        console.log(`🔄 Tentando sincronizar ${queue.length} chamado(s) pendente(s)...`);
         const remaining: any[] = [];
+        let syncedCount = 0;
 
         for (const ticket of queue) {
             try {
-                const { error } = await supabase
+                console.log(`📤 Sincronizando ticket ${ticket.tempId}...`);
+                const { data, error } = await supabase
                     .from('tickets')
                     .insert({
                         building_id: ticket.buildingId,
@@ -92,20 +97,32 @@ export const dataService = {
                         description: ticket.description,
                         photo_urls: ticket.photoUrls,
                         status: 'aguardando_vistoria'
-                    });
+                    })
+                    .select()
+                    .single();
 
-                if (error) throw error;
+                if (error) {
+                    console.error('❌ Erro ao sincronizar ticket:', error);
+                    throw error;
+                }
+
+                console.log('✅ Ticket sincronizado com sucesso! ID:', data.id);
+                syncedCount++;
             } catch (err) {
-                console.error('Failed to sync ticket, keeping in queue:', err);
+                console.error('❌ Falha ao sincronizar ticket, mantendo na fila:', err);
                 remaining.push(ticket);
             }
         }
 
         if (remaining.length === 0) {
+            console.log('✅ Todos os chamados foram sincronizados! Limpando fila.');
             dataService.clearSyncQueue();
         } else {
+            console.warn(`⚠️ ${remaining.length} chamado(s) ainda na fila após sincronização`);
             localStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(remaining));
         }
+
+        return { synced: syncedCount, failed: remaining.length };
     },
 
     // --- MIGRATION (No longer needed with real DB, but kept for interface compatibility) ---

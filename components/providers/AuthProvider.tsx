@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, MOCK_USERS } from '@/lib/mockData';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { dataService } from '@/lib/data';
+import { toast } from 'sonner';
 
 interface AuthContextType {
     user: User | null;
@@ -47,8 +48,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const queueLength = dataService.getSyncQueue().length;
             if (queueLength > 0) {
                 console.log(`🔄 Conexão restabelecida! Sincronizando ${queueLength} chamado(s)...`);
-                await dataService.syncPendingTickets();
-                console.log('✅ Sincronização concluída!');
+                const toastId = toast.loading(`Sincronizando ${queueLength} chamado(s)...`);
+
+                try {
+                    const result = await dataService.syncPendingTickets();
+                    console.log('✅ Sincronização concluída!', result);
+
+                    if (result.synced > 0) {
+                        toast.success(
+                            `${result.synced} chamado(s) sincronizado(s) com sucesso!`,
+                            { id: toastId, duration: 4000 }
+                        );
+                    } else if (result.failed > 0) {
+                        toast.error(
+                            `Erro ao sincronizar ${result.failed} chamado(s). Tentaremos novamente.`,
+                            { id: toastId, duration: 5000 }
+                        );
+                    }
+                } catch (error) {
+                    console.error('Erro na sincronização:', error);
+                    toast.error('Erro ao sincronizar chamados pendentes', { id: toastId });
+                }
             }
         };
 
