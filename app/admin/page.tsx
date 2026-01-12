@@ -360,7 +360,19 @@ export default function AdminPage() {
                             <tr key={ticket.id} className="hover:bg-muted/30 transition-colors bg-background">
                               <td className="px-3 py-4 text-xs font-bold border-x border-border/50">
                                 {ticket.isRegistered && ticket.externalTicketId ? (
-                                  <div className="text-blue-600">{ticket.externalTicketId}</div>
+                                  <div className="flex items-center gap-1">
+                                    <div className="text-blue-600">{ticket.externalTicketId}</div>
+                                    <button
+                                      onClick={() => {
+                                        setRegisteringTicketId(ticket.id);
+                                        setExternalIdInput(ticket.externalTicketId || '');
+                                      }}
+                                      className="text-muted-foreground hover:text-blue-600 transition-colors"
+                                      title="Editar número do chamado"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
                                 ) : (
                                   <div className="text-red-600 tracking-widest font-black">**********</div>
                                 )}
@@ -404,7 +416,7 @@ export default function AdminPage() {
                                     </Button>
                                   </div>
                                 ) : (
-                                  !ticket.isRegistered && (
+                                  !ticket.isRegistered ? (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -413,6 +425,8 @@ export default function AdminPage() {
                                     >
                                       REGISTRAR
                                     </Button>
+                                  ) : (
+                                    <div className="text-[10px] text-green-600 font-bold">✓ REGISTRADO</div>
                                   )
                                 )}
                               </td>
