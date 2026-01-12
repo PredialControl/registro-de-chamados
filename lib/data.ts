@@ -37,6 +37,9 @@ const STORAGE_KEYS = {
     SYNC_QUEUE: 'chamados_sync_queue'
 };
 
+// Lock para evitar race conditions ao adicionar na fila
+let queueLock: Promise<void> = Promise.resolve();
+
 export const dataService = {
     // --- OFFLINE SYNC ---
     getSyncQueue: (): any[] => {
@@ -62,24 +65,43 @@ export const dataService = {
         }
     },
 
-    addToSyncQueue: (ticketData: any) => {
+    addToSyncQueue: async (ticketData: any) => {
         const pendingTicket = {
             ...ticketData,
             tempId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             queuedAt: new Date().toISOString()
         };
 
+        // Aguardar o lock anterior liberar
+        await queueLock;
+
+        // Criar novo lock para esta operação
+        let releaseLock: () => void;
+        queueLock = new Promise(resolve => {
+            releaseLock = resolve;
+        });
+
         try {
-            const queue = dataService.getSyncQueue();
+            console.log(`⏳ Aguardando lock para adicionar ticket ${pendingTicket.tempId}...`);
+
+            // Ler fila atual do localStorage
+            const queueStr = localStorage.getItem(STORAGE_KEYS.SYNC_QUEUE);
+            const queue = queueStr ? JSON.parse(queueStr) : [];
             const queueBefore = queue.length;
+
+            console.log(`📋 Fila atual antes de adicionar: ${queueBefore} ticket(s)`);
+
+            // Adicionar novo ticket
             queue.push(pendingTicket);
 
+            // Salvar de volta
             localStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(queue));
 
             // Verificar se foi salvo corretamente
             const verifyQueue = JSON.parse(localStorage.getItem(STORAGE_KEYS.SYNC_QUEUE) || '[]');
             console.log(`✅ Ticket ${pendingTicket.tempId} adicionado à fila`);
             console.log(`   Fila antes: ${queueBefore} | depois: ${verifyQueue.length}`);
+            console.log(`   IDs na fila:`, verifyQueue.map((t: any) => t.tempId.substring(0, 20) + '...'));
 
             if (verifyQueue.length !== queue.length) {
                 console.error('⚠️ AVISO: Tamanho da fila não bate! Esperado:', queue.length, 'Real:', verifyQueue.length);
@@ -87,6 +109,9 @@ export const dataService = {
         } catch (error) {
             console.error('❌ Erro ao salvar ticket na fila offline:', error);
             console.warn('⚠️ Ticket criado mas não foi salvo para sincronização. Será perdido ao recarregar a página.');
+        } finally {
+            // Liberar lock
+            releaseLock!();
         }
 
         return pendingTicket;
@@ -217,7 +242,7 @@ export const dataService = {
 
         if (isOffline) {
             console.log('📴 Usuário offline detectado, salvando ticket localmente...');
-            const pending = dataService.addToSyncQueue(ticketData);
+            const pending = await dataService.addToSyncQueue(ticketData);
             return {
                 ticket: {
                     id: pending.tempId,
@@ -261,7 +286,7 @@ export const dataService = {
             };
         } catch (error) {
             console.error('❌ Erro de rede ou timeout, salvando localmente:', error);
-            const pending = dataService.addToSyncQueue(ticketData);
+            const pending = await dataService.addToSyncQueue(ticketData);
             return {
                 ticket: {
                     id: pending.tempId,
