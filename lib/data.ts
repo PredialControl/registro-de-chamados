@@ -42,10 +42,22 @@ export const dataService = {
     getSyncQueue: (): any[] => {
         if (typeof window === 'undefined') return [];
         try {
-            const queue = localStorage.getItem(STORAGE_KEYS.SYNC_QUEUE);
-            return queue ? JSON.parse(queue) : [];
+            const queueStr = localStorage.getItem(STORAGE_KEYS.SYNC_QUEUE);
+            if (!queueStr) {
+                console.log('📋 Fila vazia, retornando []');
+                return [];
+            }
+            const queue = JSON.parse(queueStr);
+            console.log(`📋 Fila atual tem ${queue.length} ticket(s):`, queue.map((t: any) => t.tempId));
+            return queue;
         } catch (error) {
-            console.error('Erro ao ler fila de sincronização:', error);
+            console.error('❌ Erro ao ler fila de sincronização:', error);
+            // Se houver erro de parse, tentar limpar e começar de novo
+            try {
+                localStorage.removeItem(STORAGE_KEYS.SYNC_QUEUE);
+            } catch (e) {
+                // Ignorar erro de remoção
+            }
             return [];
         }
     },
@@ -53,15 +65,25 @@ export const dataService = {
     addToSyncQueue: (ticketData: any) => {
         const pendingTicket = {
             ...ticketData,
-            tempId: Date.now().toString(),
+            tempId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             queuedAt: new Date().toISOString()
         };
 
         try {
             const queue = dataService.getSyncQueue();
+            const queueBefore = queue.length;
             queue.push(pendingTicket);
+
             localStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(queue));
-            console.log('✅ Ticket adicionado à fila offline:', pendingTicket.tempId);
+
+            // Verificar se foi salvo corretamente
+            const verifyQueue = JSON.parse(localStorage.getItem(STORAGE_KEYS.SYNC_QUEUE) || '[]');
+            console.log(`✅ Ticket ${pendingTicket.tempId} adicionado à fila`);
+            console.log(`   Fila antes: ${queueBefore} | depois: ${verifyQueue.length}`);
+
+            if (verifyQueue.length !== queue.length) {
+                console.error('⚠️ AVISO: Tamanho da fila não bate! Esperado:', queue.length, 'Real:', verifyQueue.length);
+            }
         } catch (error) {
             console.error('❌ Erro ao salvar ticket na fila offline:', error);
             console.warn('⚠️ Ticket criado mas não foi salvo para sincronização. Será perdido ao recarregar a página.');
