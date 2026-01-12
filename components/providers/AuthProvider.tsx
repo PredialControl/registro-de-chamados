@@ -44,12 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Listeners para sincronização offline
         const handleOnline = async () => {
-            // toast.success('Conexão restabelecida! Sincronizando dados...');
-            await dataService.syncPendingTickets();
+            const queueLength = dataService.getSyncQueue().length;
+            if (queueLength > 0) {
+                console.log(`🔄 Conexão restabelecida! Sincronizando ${queueLength} chamado(s)...`);
+                await dataService.syncPendingTickets();
+                console.log('✅ Sincronização concluída!');
+            }
         };
 
         const handleOffline = () => {
-            // toast.error('Você está offline. Chamados serão salvos localmente.');
+            console.log('📴 Você está offline. Chamados serão salvos localmente.');
         };
 
         window.addEventListener('online', handleOnline);

@@ -46,15 +46,21 @@ export const dataService = {
     },
 
     addToSyncQueue: (ticketData: any) => {
-        const queue = dataService.getSyncQueue();
-        const pendingTicket = {
-            ...ticketData,
-            tempId: Date.now().toString(),
-            queuedAt: new Date().toISOString()
-        };
-        queue.push(pendingTicket);
-        localStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(queue));
-        return pendingTicket;
+        try {
+            const queue = dataService.getSyncQueue();
+            const pendingTicket = {
+                ...ticketData,
+                tempId: Date.now().toString(),
+                queuedAt: new Date().toISOString()
+            };
+            queue.push(pendingTicket);
+            localStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(queue));
+            console.log('✅ Ticket adicionado à fila offline:', pendingTicket.tempId);
+            return pendingTicket;
+        } catch (error) {
+            console.error('❌ Erro ao salvar ticket na fila offline:', error);
+            throw new Error('Não foi possível salvar o chamado localmente. Verifique o armazenamento do navegador.');
+        }
     },
 
     clearSyncQueue: () => {
@@ -159,21 +165,33 @@ export const dataService = {
         return data.map(mapTicket);
     },
 
-    createTicket: async (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'status'>): Promise<Ticket | null> => {
+    createTicket: async (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'status'>): Promise<{ ticket: Ticket | null; wasOffline: boolean }> => {
         // Se estiver explicitamente offline, pular tentativa no Supabase
-        if (typeof navigator !== 'undefined' && !navigator.onLine) {
-            console.log('User is offline, queuing ticket locally.');
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+        if (isOffline) {
+            console.log('📴 Usuário offline detectado, salvando ticket localmente...');
             const pending = dataService.addToSyncQueue(ticketData);
             return {
-                id: pending.tempId,
-                ...ticketData,
-                status: 'aguardando_vistoria',
-                createdAt: pending.queuedAt
-            } as any;
+                ticket: {
+                    id: pending.tempId,
+                    ...ticketData,
+                    status: 'aguardando_vistoria',
+                    createdAt: pending.queuedAt
+                } as any,
+                wasOffline: true
+            };
         }
 
         try {
-            const { data, error } = await supabase
+            console.log('🌐 Tentando enviar ticket online...');
+
+            // Criar promise com timeout de 10 segundos
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Timeout: sem resposta do servidor')), 10000);
+            });
+
+            const insertPromise = supabase
                 .from('tickets')
                 .insert({
                     building_id: ticketData.buildingId,
@@ -186,17 +204,27 @@ export const dataService = {
                 .select()
                 .single();
 
-            if (error) throw error;
-            return mapTicket(data);
+            const result = await Promise.race([insertPromise, timeoutPromise]) as any;
+
+            if (result.error) throw result.error;
+
+            console.log('✅ Ticket enviado online com sucesso!');
+            return {
+                ticket: mapTicket(result.data),
+                wasOffline: false
+            };
         } catch (error) {
-            console.error('Network error or Supabase error, queuing locally:', error);
+            console.error('❌ Erro de rede ou timeout, salvando localmente:', error);
             const pending = dataService.addToSyncQueue(ticketData);
             return {
-                id: pending.tempId,
-                ...ticketData,
-                status: 'aguardando_vistoria',
-                createdAt: pending.queuedAt
-            } as any;
+                ticket: {
+                    id: pending.tempId,
+                    ...ticketData,
+                    status: 'aguardando_vistoria',
+                    createdAt: pending.queuedAt
+                } as any,
+                wasOffline: true
+            };
         }
     },
 

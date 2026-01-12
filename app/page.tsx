@@ -83,7 +83,7 @@ export default function TicketPage() {
     const loadingToast = toast.loading('Enviando chamado...');
 
     try {
-      await dataService.createTicket({
+      const result = await dataService.createTicket({
         buildingId: selectedBuilding,
         userId: user.id,
         location,
@@ -91,7 +91,17 @@ export default function TicketPage() {
         photoUrls: photoPreviews,
       });
 
-      toast.success('Chamado aberto com sucesso!', { id: loadingToast });
+      if (result.wasOffline) {
+        toast.success(
+          'Chamado salvo localmente! Será enviado automaticamente quando você voltar online.',
+          {
+            id: loadingToast,
+            duration: 5000
+          }
+        );
+      } else {
+        toast.success('Chamado enviado com sucesso!', { id: loadingToast });
+      }
 
       // Reset form
       if (buildings.length > 1) setSelectedBuilding('');
@@ -101,7 +111,7 @@ export default function TicketPage() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       console.error('Error submitting ticket:', error);
-      toast.error('Erro ao abrir chamado. Tente novamente.', { id: loadingToast });
+      toast.error('Erro ao salvar chamado. Verifique o armazenamento do navegador.', { id: loadingToast });
     } finally {
       setIsSubmitting(false);
     }
