@@ -48,6 +48,7 @@ export default function ChamadosPage() {
   const [selectedTicketForGallery, setSelectedTicketForGallery] = useState<Ticket | null>(null);
   const [editingTicketNumberId, setEditingTicketNumberId] = useState<string | null>(null);
   const [editingTicketNumberValue, setEditingTicketNumberValue] = useState('');
+  const [reprogrammingReason, setReprogrammingReason] = useState('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -125,6 +126,7 @@ export default function ChamadosPage() {
   const cancelEdit = () => {
     setEditingTicketId(null);
     setEditForm({});
+    setReprogrammingReason('');
   };
 
   const saveEdit = async () => {
@@ -133,12 +135,25 @@ export default function ChamadosPage() {
     const originalTicket = tickets.find(t => t.id === editingTicketId);
     if (!originalTicket) return;
 
+    // Verificar se mudou a data de reprogramação
+    const hasReprogrammingChange = editForm.reprogrammingDate && editForm.reprogrammingDate !== originalTicket.reprogrammingDate;
+
+    // Se mudou a reprogramação, exigir motivo
+    if (hasReprogrammingChange && !reprogrammingReason.trim()) {
+      toast.error('Informe o motivo da reprogramação!');
+      return;
+    }
+
     // Lógica de histórico de reprogramação
     let updatedHistory = originalTicket.reprogrammingHistory || [];
-    if (editForm.reprogrammingDate && editForm.reprogrammingDate !== originalTicket.reprogrammingDate) {
-      if (originalTicket.reprogrammingDate) {
-        updatedHistory = [...updatedHistory, originalTicket.reprogrammingDate];
-      }
+    if (hasReprogrammingChange) {
+      const newEntry = {
+        date: editForm.reprogrammingDate!,
+        reason: reprogrammingReason.trim(),
+        updatedAt: new Date().toISOString()
+      };
+
+      updatedHistory = [...updatedHistory, newEntry];
     }
 
     try {
@@ -150,6 +165,7 @@ export default function ChamadosPage() {
       await loadData();
       setEditingTicketId(null);
       setEditForm({});
+      setReprogrammingReason('');
       toast.success('Chamado atualizado com sucesso!');
     } catch (error) {
       toast.error('Erro ao atualizar chamado.');
@@ -531,12 +547,22 @@ export default function ChamadosPage() {
 
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
                         {isAdmin && isEditing ? (
-                          <Input
-                            type="date"
-                            value={editForm.reprogrammingDate?.split('T')[0] || ''}
-                            onChange={(e) => setEditForm({ ...editForm, reprogrammingDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
-                            className="h-8 text-xs bg-background w-32 mx-auto"
-                          />
+                          <div className="space-y-2">
+                            <Input
+                              type="date"
+                              value={editForm.reprogrammingDate?.split('T')[0] || ''}
+                              onChange={(e) => setEditForm({ ...editForm, reprogrammingDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
+                              className="h-8 text-xs bg-background w-32 mx-auto"
+                            />
+                            {editForm.reprogrammingDate && editForm.reprogrammingDate !== ticket.reprogrammingDate && (
+                              <Textarea
+                                value={reprogrammingReason}
+                                onChange={(e) => setReprogrammingReason(e.target.value)}
+                                className="min-h-[50px] text-xs bg-background"
+                                placeholder="Motivo da reprogramação..."
+                              />
+                            )}
+                          </div>
                         ) : (
                           <div className="space-y-1">
                             {ticket.reprogrammingDate && (
@@ -545,15 +571,9 @@ export default function ChamadosPage() {
                               </div>
                             )}
                             {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
-                              <div className="group relative cursor-help">
-                                <div className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                                  <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center font-bold text-[10px]">!</span>
-                                  Reprogramado
-                                </div>
-                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-48 bg-popover text-popover-foreground p-2 rounded-md shadow-lg border border-border text-[10px] italic animate-in fade-in zoom-in duration-200">
-                                  Era: {ticket.reprogrammingHistory.map(d => formatDate(d)).join(', ')}
-                                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-popover border-b border-r border-border rotate-45"></div>
-                                </div>
+                              <div className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center font-bold text-[10px]">!</span>
+                                Reprogramado {ticket.reprogrammingHistory.length}x
                               </div>
                             )}
                           </div>
@@ -569,8 +589,22 @@ export default function ChamadosPage() {
                             placeholder="Retorno da construtora..."
                           />
                         ) : (
-                          <div className="max-w-[200px] truncate cursor-help" title={ticket.constructorReturn}>
-                            {ticket.constructorReturn || (ticket.status === 'concluido' ? `Concluído em ${formatDate(ticket.createdAt)}` : 'Aguardando retorno')}
+                          <div className="max-w-[250px] text-xs space-y-1">
+                            {/* Histórico de reprogramações */}
+                            {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
+                              <div className="space-y-1 mb-2 pb-2 border-b border-border">
+                                {ticket.reprogrammingHistory.map((entry: any, index: number) => (
+                                  <div key={index} className="text-amber-600 dark:text-amber-400 italic">
+                                    <div className="font-bold">Atualização {formatDate(entry.updatedAt || entry)}</div>
+                                    {entry.reason && <div className="text-[10px]">{entry.reason}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Retorno da construtora */}
+                            <div className="truncate cursor-help" title={ticket.constructorReturn}>
+                              {ticket.constructorReturn || (ticket.status === 'concluido' ? `Concluído em ${formatDate(ticket.createdAt)}` : 'Aguardando retorno')}
+                            </div>
                           </div>
                         )}
                       </td>

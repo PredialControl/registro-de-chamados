@@ -15,6 +15,12 @@ export interface Building {
     address: string;
 }
 
+export interface ReprogrammingEntry {
+    date: string; // Data da reprogramação
+    reason: string; // Motivo da reprogramação
+    updatedAt: string; // Data em que foi atualizado
+}
+
 export interface Ticket {
     id: string;
     buildingId: string;
@@ -26,7 +32,7 @@ export interface Ticket {
     createdAt: string;
     deadline?: string;
     reprogrammingDate?: string;
-    reprogrammingHistory?: string[];
+    reprogrammingHistory?: ReprogrammingEntry[];
     constructorReturn?: string;
     externalTicketId?: string;
     isRegistered?: boolean;
