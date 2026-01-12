@@ -98,22 +98,24 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
     return STATUS_MAP[normalized] || 'aguardando_vistoria';
   };
 
-  const parseExcelDate = (excelDate: any): string => {
-    if (!excelDate) return new Date().toISOString();
+  const parseExcelDate = (excelDate: any): string | undefined => {
+    if (!excelDate) return undefined;
 
     // Se já for string de data
     if (typeof excelDate === 'string') {
       const date = new Date(excelDate);
-      return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+      return isNaN(date.getTime()) ? undefined : date.toISOString();
     }
 
     // Se for número (serial date do Excel)
     if (typeof excelDate === 'number') {
-      const date = new Date((excelDate - 25569) * 86400 * 1000);
+      // Excel serial date: número de dias desde 1/1/1900
+      // Ajuste para UTC sem conversão de timezone
+      const date = new Date(Date.UTC(0, 0, excelDate - 25568));
       return date.toISOString();
     }
 
-    return new Date().toISOString();
+    return undefined;
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,7 +162,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           location: local,
           description: descricao,
           status: normalizeStatus(row['Situação'] || row.Situação || row.Situacao || row.Status || ''),
-          createdAt: parseExcelDate(row.Abertura || row.Data),
+          createdAt: parseExcelDate(row.Abertura || row.Data) || new Date().toISOString(),
           deadline: row.Prazo ? parseExcelDate(row.Prazo) : undefined,
           externalTicketId: numeroChamado ? String(numeroChamado) : undefined,
           row: index + 2, // +2 porque Excel começa em 1 e tem cabeçalho
@@ -238,7 +240,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           location: 'Não especificado',
           description: pendencia,
           status: normalizeStatus(situacao || ''),
-          createdAt: parseExcelDate(abertura),
+          createdAt: parseExcelDate(abertura) || new Date().toISOString(),
           deadline: prazo ? parseExcelDate(prazo) : undefined,
           externalTicketId: chamado || undefined,
           row: i + 1,
