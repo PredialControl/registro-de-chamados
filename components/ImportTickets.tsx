@@ -4,20 +4,32 @@ import { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { dataService } from '@/lib/data';
 import { Building } from '@/lib/mockData';
 
 interface ExcelRow {
-  Prédio?: string;
-  Empreendimento?: string;
+  // Colunas da planilha do usuário
+  Chamado?: string;
   Local?: string;
   Descrição?: string;
   Descricao?: string;
+  Situação?: string;
+  Situacao?: string;
+  Abertura?: string;
+  Prazo?: string;
+  Reprogramação?: string;
+  Reprogramacao?: string;
+  Retorno?: string;
+
+  // Alternativas (caso use outras planilhas)
+  Prédio?: string;
+  Empreendimento?: string;
   Status?: string;
   Data?: string;
-  Prazo?: string;
   'ID Chamado'?: string;
   'Número'?: string;
 }
@@ -51,6 +63,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
   userId: string;
   onImportComplete: () => void;
 }) {
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
   const [parsedTickets, setParsedTickets] = useState<ParsedTicket[]>([]);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -90,6 +103,14 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!selectedBuildingId) {
+      toast.error('Selecione o prédio primeiro!');
+      e.target.value = '';
+      return;
+    }
+
+    const selectedBuilding = buildings.find(b => b.id === selectedBuildingId);
+
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -97,25 +118,20 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
       const jsonData: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet);
 
       const parsed: ParsedTicket[] = jsonData.map((row, index) => {
-        const buildingName = row.Prédio || row.Empreendimento || '';
-        const buildingId = findBuildingId(buildingName);
-
         const ticket: ParsedTicket = {
-          buildingId: buildingId || '',
-          buildingName,
+          buildingId: selectedBuildingId,
+          buildingName: selectedBuilding?.name || '',
           location: row.Local || '',
           description: row.Descrição || row.Descricao || '',
-          status: normalizeStatus(row.Status || ''),
-          createdAt: parseExcelDate(row.Data),
+          status: normalizeStatus(row.Situação || row.Situacao || row.Status || ''),
+          createdAt: parseExcelDate(row.Abertura || row.Data),
           deadline: row.Prazo ? parseExcelDate(row.Prazo) : undefined,
-          externalTicketId: row['ID Chamado'] || row['Número'] || undefined,
+          externalTicketId: row.Chamado || row['ID Chamado'] || row['Número'] || undefined,
           row: index + 2, // +2 porque Excel começa em 1 e tem cabeçalho
         };
 
         // Validações
-        if (!ticket.buildingId) {
-          ticket.error = `Prédio "${buildingName}" não encontrado`;
-        } else if (!ticket.location) {
+        if (!ticket.location) {
           ticket.error = 'Local não informado';
         } else if (!ticket.description) {
           ticket.error = 'Descrição não informada';
@@ -202,24 +218,47 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="excel-upload"
-              disabled={isImporting}
-            />
-            <label htmlFor="excel-upload" className="cursor-pointer">
-              <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-2">
-                Clique para selecionar arquivo Excel (.xlsx, .xls)
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Colunas: Prédio, Local, Descrição, Status, Data
-              </p>
-            </label>
+          {/* Seletor de Prédio */}
+          <div className="space-y-2">
+            <Label htmlFor="building-select">1. Selecione o Prédio da Planilha</Label>
+            <Select value={selectedBuildingId} onValueChange={setSelectedBuildingId}>
+              <SelectTrigger id="building-select">
+                <SelectValue placeholder="Escolha o prédio..." />
+              </SelectTrigger>
+              <SelectContent>
+                {buildings.map(building => (
+                  <SelectItem key={building.id} value={building.id}>
+                    {building.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Upload de Arquivo */}
+          <div className="space-y-2">
+            <Label>2. Faça Upload da Planilha Excel</Label>
+            <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
+              selectedBuildingId ? 'border-border hover:border-blue-500 cursor-pointer' : 'border-muted-foreground/20 opacity-50'
+            }`}>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="excel-upload"
+                disabled={isImporting || !selectedBuildingId}
+              />
+              <label htmlFor="excel-upload" className={selectedBuildingId ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                <Upload className={`w-12 h-12 mx-auto mb-4 ${selectedBuildingId ? 'text-muted-foreground' : 'text-muted-foreground/50'}`} />
+                <p className="text-sm text-muted-foreground mb-2">
+                  {selectedBuildingId ? 'Clique para selecionar arquivo Excel (.xlsx, .xls)' : 'Selecione um prédio primeiro'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Colunas: Chamado, Local, Descrição, Situação, Abertura, Prazo
+                </p>
+              </label>
+            </div>
           </div>
 
           {parsedTickets.length > 0 && (
