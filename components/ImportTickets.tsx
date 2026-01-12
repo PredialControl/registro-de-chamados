@@ -103,16 +103,32 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
 
     // Se já for string de data
     if (typeof excelDate === 'string') {
-      const date = new Date(excelDate);
+      const trimmed = excelDate.trim();
+      if (!trimmed) return undefined;
+      const date = new Date(trimmed);
       return isNaN(date.getTime()) ? undefined : date.toISOString();
     }
 
     // Se for número (serial date do Excel)
     if (typeof excelDate === 'number') {
-      // Excel serial date: número de dias desde 1/1/1900
-      // Ajuste para UTC sem conversão de timezone
-      const date = new Date(Date.UTC(0, 0, excelDate - 25568));
-      return date.toISOString();
+      // Excel armazena datas como número de dias desde 30/12/1899
+      // 25569 = dias entre 30/12/1899 e 01/01/1970 (época Unix)
+      const EXCEL_EPOCH_OFFSET = 25569;
+      const MS_PER_DAY = 86400 * 1000;
+
+      // Calcular milissegundos desde época Unix
+      const unixTimestamp = (excelDate - EXCEL_EPOCH_OFFSET) * MS_PER_DAY;
+
+      // Criar data em UTC para evitar problemas de timezone
+      const date = new Date(unixTimestamp);
+
+      // Ajustar para meio-dia UTC para evitar mudanças de dia por timezone
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const day = date.getUTCDate();
+
+      const adjustedDate = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+      return adjustedDate.toISOString();
     }
 
     return undefined;
@@ -156,21 +172,25 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
         // Local pode ser vazio ou "Não especificado"
         const local = row.Local || 'Não especificado';
 
+        const abertura = parseExcelDate(row.Abertura || row.Data);
+
         const ticket: ParsedTicket = {
           buildingId: selectedBuildingId,
           buildingName: selectedBuilding?.name || '',
           location: local,
           description: descricao,
           status: normalizeStatus(row['Situação'] || row.Situação || row.Situacao || row.Status || ''),
-          createdAt: parseExcelDate(row.Abertura || row.Data) || new Date().toISOString(),
+          createdAt: abertura || new Date().toISOString(), // Usa data atual apenas se necessário
           deadline: row.Prazo ? parseExcelDate(row.Prazo) : undefined,
           externalTicketId: numeroChamado ? String(numeroChamado) : undefined,
           row: index + 2, // +2 porque Excel começa em 1 e tem cabeçalho
         };
 
-        // Validações - apenas descrição é obrigatória
+        // Validações
         if (!ticket.description) {
           ticket.error = 'Pendência/Descrição não informada';
+        } else if (!abertura) {
+          ticket.error = 'Data de Abertura não informada';
         }
 
         return ticket;
@@ -234,21 +254,25 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
         const abertura = aberturasArray[i] || '';
         const prazo = prazosArray[i] || '';
 
+        const dataAbertura = parseExcelDate(abertura);
+
         const ticket: ParsedTicket = {
           buildingId: selectedBuildingId,
           buildingName: selectedBuilding?.name || '',
           location: 'Não especificado',
           description: pendencia,
           status: normalizeStatus(situacao || ''),
-          createdAt: parseExcelDate(abertura) || new Date().toISOString(),
+          createdAt: dataAbertura || new Date().toISOString(), // Usa data atual apenas se necessário
           deadline: prazo ? parseExcelDate(prazo) : undefined,
           externalTicketId: chamado || undefined,
           row: i + 1,
         };
 
-        // Validação - descrição é obrigatória
+        // Validações
         if (!ticket.description) {
           ticket.error = 'Pendência/Descrição não informada';
+        } else if (!dataAbertura) {
+          ticket.error = 'Data de Abertura não informada';
         }
 
         parsed.push(ticket);
