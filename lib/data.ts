@@ -453,6 +453,7 @@ export const dataService = {
                 created_at: ticketData.createdAt,
                 deadline: ticketData.deadline,
                 external_ticket_id: ticketData.externalTicketId,
+                is_registered: ticketData.externalTicketId ? true : false,
             });
 
         if (error) throw error;
