@@ -99,22 +99,35 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
   };
 
   const parseExcelDate = (excelDate: any): string | undefined => {
+    console.log('🔍 parseExcelDate recebeu:', excelDate, 'tipo:', typeof excelDate);
+
     // Verificações rigorosas de vazio
-    if (excelDate === null || excelDate === undefined || excelDate === '') return undefined;
+    if (excelDate === null || excelDate === undefined || excelDate === '') {
+      console.log('❌ Valor vazio detectado, retornando undefined');
+      return undefined;
+    }
 
     // Se já for string de data
     if (typeof excelDate === 'string') {
       const trimmed = excelDate.trim();
-      if (!trimmed || trimmed === '') return undefined;
+      if (!trimmed || trimmed === '') {
+        console.log('❌ String vazia após trim, retornando undefined');
+        return undefined;
+      }
 
       const date = new Date(trimmed);
-      return isNaN(date.getTime()) ? undefined : date.toISOString();
+      const result = isNaN(date.getTime()) ? undefined : date.toISOString();
+      console.log('📅 String convertida:', result);
+      return result;
     }
 
     // Se for número (serial date do Excel)
     if (typeof excelDate === 'number') {
       // Verificar se é um número válido (não NaN, não zero, não negativo)
-      if (isNaN(excelDate) || excelDate <= 0) return undefined;
+      if (isNaN(excelDate) || excelDate <= 0) {
+        console.log('❌ Número inválido, retornando undefined');
+        return undefined;
+      }
 
       // Excel armazena datas como número de dias desde 30/12/1899
       // 25569 = dias entre 30/12/1899 e 01/01/1970 (época Unix)
@@ -133,9 +146,11 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
       const day = date.getUTCDate();
 
       const adjustedDate = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
+      console.log(`📅 Excel ${excelDate} → ${day}/${month + 1}/${year} → ${adjustedDate.toISOString()}`);
       return adjustedDate.toISOString();
     }
 
+    console.log('❌ Tipo não suportado, retornando undefined');
     return undefined;
   };
 
