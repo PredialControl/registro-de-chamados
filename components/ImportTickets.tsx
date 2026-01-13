@@ -194,6 +194,19 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
 
         const abertura = parseExcelDate(row.Abertura || row.Data);
 
+        // LOG DETALHADO DO PRAZO ANTES DO PARSE
+        console.log(`\n========== LINHA ${index + 2} ==========`);
+        console.log('🔎 row.Prazo RAW:', row.Prazo);
+        console.log('🔎 Tipo:', typeof row.Prazo);
+        console.log('🔎 É null?', row.Prazo === null);
+        console.log('🔎 É undefined?', row.Prazo === undefined);
+        console.log('🔎 É string vazia?', row.Prazo === '');
+        console.log('🔎 Todas as chaves da linha:', Object.keys(row));
+        console.log('🔎 Valor de Abertura:', row.Abertura);
+
+        const prazoParseado = parseExcelDate(row.Prazo);
+        console.log('✅ Prazo após parseExcelDate:', prazoParseado);
+
         const ticket: ParsedTicket = {
           buildingId: selectedBuildingId,
           buildingName: selectedBuilding?.name || '',
@@ -201,7 +214,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           description: descricao,
           status: normalizeStatus(row['Situação'] || row.Situação || row.Situacao || row.Status || ''),
           createdAt: abertura || new Date().toISOString(),
-          deadline: parseExcelDate(row.Prazo),
+          deadline: prazoParseado,
           externalTicketId: numeroChamado ? String(numeroChamado) : undefined,
           row: index + 2,
         };
