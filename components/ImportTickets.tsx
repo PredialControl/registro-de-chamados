@@ -340,7 +340,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
 
       for (const ticket of validTickets) {
         try {
-          await dataService.importTicket({
+          const dataToImport = {
             buildingId: ticket.buildingId,
             userId,
             location: ticket.location,
@@ -350,7 +350,15 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
             createdAt: ticket.createdAt,
             deadline: ticket.deadline,
             externalTicketId: ticket.externalTicketId,
-          });
+          };
+
+          console.log(`\n🚀 ENVIANDO PARA SUPABASE - Linha ${ticket.row}:`);
+          console.log('   deadline:', dataToImport.deadline);
+          console.log('   deadline é undefined?', dataToImport.deadline === undefined);
+          console.log('   deadline é null?', dataToImport.deadline === null);
+          console.log('   Objeto completo:', JSON.stringify(dataToImport, null, 2));
+
+          await dataService.importTicket(dataToImport);
           imported++;
         } catch (error) {
           console.error(`Erro na linha ${ticket.row}:`, error);
