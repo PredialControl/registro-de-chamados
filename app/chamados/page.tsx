@@ -627,8 +627,8 @@ export default function ChamadosPage() {
                               </div>
                             )}
                             {/* Retorno da construtora */}
-                            <div className="truncate cursor-help" title={ticket.constructorReturn}>
-                              {ticket.constructorReturn || (ticket.status === 'concluido' ? `Concluído em ${formatDate(ticket.createdAt)}` : 'Aguardando retorno')}
+                            <div className="truncate cursor-help" title={ticket.constructorReturn || ''}>
+                              {ticket.constructorReturn || '--'}
                             </div>
                           </div>
                         )}
