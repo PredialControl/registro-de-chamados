@@ -441,9 +441,6 @@ export const dataService = {
         deadline?: string;
         externalTicketId?: string;
     }): Promise<void> => {
-        console.log('🔧 importTicket recebeu deadline:', ticketData.deadline);
-        console.log('🔧 deadline é undefined?', ticketData.deadline === undefined);
-
         const { error } = await supabase
             .from('tickets')
             .insert({
@@ -454,7 +451,7 @@ export const dataService = {
                 photo_urls: ticketData.photoUrls,
                 status: ticketData.status,
                 created_at: ticketData.createdAt,
-                // IMPORTANTE: Enviar null explicitamente quando undefined
+                // Enviar null explicitamente quando undefined
                 // para evitar que o Supabase use valor DEFAULT da coluna
                 deadline: ticketData.deadline === undefined ? null : ticketData.deadline,
                 external_ticket_id: ticketData.externalTicketId,

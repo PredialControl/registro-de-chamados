@@ -99,11 +99,8 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
   };
 
   const parseExcelDate = (excelDate: any): string | undefined => {
-    console.log('🔍 parseExcelDate recebeu:', excelDate, 'tipo:', typeof excelDate);
-
     // Verificações rigorosas de vazio
     if (excelDate === null || excelDate === undefined || excelDate === '') {
-      console.log('❌ Valor vazio detectado, retornando undefined');
       return undefined;
     }
 
@@ -111,21 +108,17 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
     if (typeof excelDate === 'string') {
       const trimmed = excelDate.trim();
       if (!trimmed || trimmed === '') {
-        console.log('❌ String vazia após trim, retornando undefined');
         return undefined;
       }
 
       const date = new Date(trimmed);
-      const result = isNaN(date.getTime()) ? undefined : date.toISOString();
-      console.log('📅 String convertida:', result);
-      return result;
+      return isNaN(date.getTime()) ? undefined : date.toISOString();
     }
 
     // Se for número (serial date do Excel)
     if (typeof excelDate === 'number') {
       // Verificar se é um número válido (não NaN, não zero, não negativo)
       if (isNaN(excelDate) || excelDate <= 0) {
-        console.log('❌ Número inválido, retornando undefined');
         return undefined;
       }
 
@@ -146,11 +139,9 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
       const day = date.getUTCDate();
 
       const adjustedDate = new Date(Date.UTC(year, month, day, 12, 0, 0, 0));
-      console.log(`📅 Excel ${excelDate} → ${day}/${month + 1}/${year} → ${adjustedDate.toISOString()}`);
       return adjustedDate.toISOString();
     }
 
-    console.log('❌ Tipo não suportado, retornando undefined');
     return undefined;
   };
 
@@ -194,19 +185,6 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
 
         const abertura = parseExcelDate(row.Abertura || row.Data);
 
-        // LOG DETALHADO DO PRAZO ANTES DO PARSE
-        console.log(`\n========== LINHA ${index + 2} ==========`);
-        console.log('🔎 row.Prazo RAW:', row.Prazo);
-        console.log('🔎 Tipo:', typeof row.Prazo);
-        console.log('🔎 É null?', row.Prazo === null);
-        console.log('🔎 É undefined?', row.Prazo === undefined);
-        console.log('🔎 É string vazia?', row.Prazo === '');
-        console.log('🔎 Todas as chaves da linha:', Object.keys(row));
-        console.log('🔎 Valor de Abertura:', row.Abertura);
-
-        const prazoParseado = parseExcelDate(row.Prazo);
-        console.log('✅ Prazo após parseExcelDate:', prazoParseado);
-
         const ticket: ParsedTicket = {
           buildingId: selectedBuildingId,
           buildingName: selectedBuilding?.name || '',
@@ -214,7 +192,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           description: descricao,
           status: normalizeStatus(row['Situação'] || row.Situação || row.Situacao || row.Status || ''),
           createdAt: abertura || new Date().toISOString(),
-          deadline: prazoParseado,
+          deadline: parseExcelDate(row.Prazo),
           externalTicketId: numeroChamado ? String(numeroChamado) : undefined,
           row: index + 2,
         };
@@ -340,7 +318,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
 
       for (const ticket of validTickets) {
         try {
-          const dataToImport = {
+          await dataService.importTicket({
             buildingId: ticket.buildingId,
             userId,
             location: ticket.location,
@@ -350,15 +328,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
             createdAt: ticket.createdAt,
             deadline: ticket.deadline,
             externalTicketId: ticket.externalTicketId,
-          };
-
-          console.log(`\n🚀 ENVIANDO PARA SUPABASE - Linha ${ticket.row}:`);
-          console.log('   deadline:', dataToImport.deadline);
-          console.log('   deadline é undefined?', dataToImport.deadline === undefined);
-          console.log('   deadline é null?', dataToImport.deadline === null);
-          console.log('   Objeto completo:', JSON.stringify(dataToImport, null, 2));
-
-          await dataService.importTicket(dataToImport);
+          });
           imported++;
         } catch (error) {
           console.error(`Erro na linha ${ticket.row}:`, error);
