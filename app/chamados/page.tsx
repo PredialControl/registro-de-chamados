@@ -593,12 +593,37 @@ export default function ChamadosPage() {
                             {/* Histórico de reprogramações */}
                             {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
                               <div className="space-y-1 mb-2 pb-2 border-b border-border">
-                                {ticket.reprogrammingHistory.map((entry: any, index: number) => (
-                                  <div key={index} className="text-amber-600 dark:text-amber-400 italic">
-                                    <div className="font-bold">Atualização {formatDate(entry.updatedAt || entry)}</div>
-                                    {entry.reason && <div className="text-[10px]">{entry.reason}</div>}
-                                  </div>
-                                ))}
+                                {ticket.reprogrammingHistory.map((entry: any, index: number) => {
+                                  // Suportar formato antigo (string) e novo (objeto)
+                                  const isObject = typeof entry === 'object' && entry.updatedAt;
+                                  const date = isObject ? entry.updatedAt : entry;
+                                  const reason = isObject ? entry.reason : '';
+
+                                  return (
+                                    <div key={index} className="text-amber-600 dark:text-amber-400 italic flex justify-between items-start gap-2">
+                                      <div className="flex-1">
+                                        <div className="font-bold">Atualização {formatDate(date)}</div>
+                                        {reason && <div className="text-[10px]">{reason}</div>}
+                                      </div>
+                                      {isAdmin && isEditing && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const newHistory = ticket.reprogrammingHistory?.filter((_, i) => i !== index) || [];
+                                            dataService.updateTicket(ticket.id, { reprogrammingHistory: newHistory }).then(() => {
+                                              loadData();
+                                              toast.success('Motivo removido!');
+                                            });
+                                          }}
+                                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                          title="Remover este motivo"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                             {/* Retorno da construtora */}
