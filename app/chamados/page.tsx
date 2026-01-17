@@ -289,7 +289,7 @@ export default function ChamadosPage() {
             {/* Status List */}
             <div className="space-y-3">
               {Object.entries(STATUS_CONFIG).map(([key, config]) => {
-                const count = key === 'itens_apontados' ? ticketsByStatus.todos : ticketsByStatus[key as keyof typeof ticketsByStatus];
+                const count = ticketsByStatus[key as keyof typeof ticketsByStatus];
                 const percentage = ticketsByStatus.todos > 0 ? (count / ticketsByStatus.todos) * 100 : 0;
                 return (
                   <div key={key} className="space-y-1">
