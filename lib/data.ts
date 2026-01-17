@@ -437,7 +437,7 @@ export const dataService = {
         description: string;
         photoUrls: string[];
         status: string;
-        createdAt: string;
+        createdAt?: string;
         deadline?: string;
         externalTicketId?: string;
     }): Promise<void> => {
@@ -449,7 +449,8 @@ export const dataService = {
             description: ticketData.description,
             photo_urls: ticketData.photoUrls,
             status: ticketData.status,
-            created_at: ticketData.createdAt,
+            // Se não tiver createdAt, usa data de hoje (banco exige)
+            created_at: ticketData.createdAt || new Date().toISOString(),
             is_registered: ticketData.externalTicketId ? true : false,
         };
 

@@ -47,7 +47,7 @@ interface ParsedTicket {
   location: string;
   description: string;
   status: string;
-  createdAt: string;
+  createdAt?: string;
   deadline?: string;
   externalTicketId?: string;
   row: number;
@@ -191,7 +191,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           location: local,
           description: descricao,
           status: normalizeStatus(row['Situação'] || row.Situação || row.Situacao || row.Status || ''),
-          createdAt: abertura || new Date().toISOString(),
+          createdAt: abertura, // Não usa fallback, fica undefined se não tiver
           deadline: parseExcelDate(row.Prazo),
           externalTicketId: numeroChamado ? String(numeroChamado) : undefined,
           row: index + 2,
@@ -272,7 +272,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           location: 'Não especificado',
           description: pendencia,
           status: normalizeStatus(situacao || ''),
-          createdAt: dataAbertura || new Date().toISOString(),
+          createdAt: dataAbertura, // Não usa fallback, fica undefined se não tiver
           deadline: dataPrazo,
           externalTicketId: chamado || undefined,
           row: i + 1,
