@@ -441,22 +441,32 @@ export const dataService = {
         deadline?: string;
         externalTicketId?: string;
     }): Promise<void> => {
+        // Construir objeto base
+        const insertData: any = {
+            building_id: ticketData.buildingId,
+            user_id: ticketData.userId,
+            location: ticketData.location,
+            description: ticketData.description,
+            photo_urls: ticketData.photoUrls,
+            status: ticketData.status,
+            created_at: ticketData.createdAt,
+            is_registered: ticketData.externalTicketId ? true : false,
+        };
+
+        // Apenas adicionar deadline se não for undefined/null
+        // Assim o Supabase não aplica DEFAULT, e deixa NULL
+        if (ticketData.deadline) {
+            insertData.deadline = ticketData.deadline;
+        }
+
+        // Apenas adicionar external_ticket_id se existir
+        if (ticketData.externalTicketId) {
+            insertData.external_ticket_id = ticketData.externalTicketId;
+        }
+
         const { error } = await supabase
             .from('tickets')
-            .insert({
-                building_id: ticketData.buildingId,
-                user_id: ticketData.userId,
-                location: ticketData.location,
-                description: ticketData.description,
-                photo_urls: ticketData.photoUrls,
-                status: ticketData.status,
-                created_at: ticketData.createdAt,
-                // Enviar null explicitamente quando undefined
-                // para evitar que o Supabase use valor DEFAULT da coluna
-                deadline: ticketData.deadline === undefined ? null : ticketData.deadline,
-                external_ticket_id: ticketData.externalTicketId,
-                is_registered: ticketData.externalTicketId ? true : false,
-            });
+            .insert(insertData);
 
         if (error) throw error;
     }
