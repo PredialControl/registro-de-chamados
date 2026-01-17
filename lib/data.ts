@@ -441,7 +441,7 @@ export const dataService = {
         deadline?: string;
         externalTicketId?: string;
     }): Promise<void> => {
-        // Construir objeto base - SEMPRE incluir deadline (null se vazio)
+        // Construir objeto base - SEMPRE incluir deadline e created_at (null se vazio)
         const insertData: any = {
             building_id: ticketData.buildingId,
             user_id: ticketData.userId,
@@ -449,10 +449,9 @@ export const dataService = {
             description: ticketData.description,
             photo_urls: ticketData.photoUrls,
             status: ticketData.status,
-            // Se não tiver createdAt, usa data de hoje (banco exige)
-            created_at: ticketData.createdAt || new Date().toISOString(),
+            // Se não tiver createdAt, enviar null ao invés de data de hoje
+            created_at: ticketData.createdAt || null,
             // SEMPRE enviar deadline: null quando vazio, valor quando tem
-            // Isso FORÇA o Supabase a não usar DEFAULT
             deadline: ticketData.deadline || null,
             external_ticket_id: ticketData.externalTicketId || null,
             is_registered: ticketData.externalTicketId ? true : false,
