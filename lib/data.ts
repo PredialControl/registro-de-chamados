@@ -464,6 +464,10 @@ export const dataService = {
             insertData.external_ticket_id = ticketData.externalTicketId;
         }
 
+        console.log('📤 OBJETO ENVIADO AO SUPABASE:', JSON.stringify(insertData, null, 2));
+        console.log('📤 Tem campo deadline?', 'deadline' in insertData);
+        console.log('📤 Valor do deadline:', insertData.deadline);
+
         const { error } = await supabase
             .from('tickets')
             .insert(insertData);
