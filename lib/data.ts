@@ -460,7 +460,8 @@ export const dataService = {
             external_ticket_id: ticketData.externalTicketId || null,
             constructor_return: ticketData.constructorReturn || null,
             responsible: ticketData.responsible || null,
-            is_registered: ticketData.externalTicketId ? true : false,
+            // Chamados importados sempre são marcados como registrados (não aparecem em "Pendentes")
+            is_registered: true,
         };
 
         const { error } = await supabase
