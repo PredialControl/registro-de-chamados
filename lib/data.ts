@@ -440,6 +440,7 @@ export const dataService = {
         createdAt?: string;
         deadline?: string;
         externalTicketId?: string;
+        constructorReturn?: string;
     }): Promise<void> => {
         // Construir objeto base - SEMPRE incluir deadline e created_at (null se vazio)
         const insertData: any = {
@@ -454,6 +455,7 @@ export const dataService = {
             // SEMPRE enviar deadline: null quando vazio, valor quando tem
             deadline: ticketData.deadline || null,
             external_ticket_id: ticketData.externalTicketId || null,
+            constructor_return: ticketData.constructorReturn || null,
             is_registered: ticketData.externalTicketId ? true : false,
         };
 

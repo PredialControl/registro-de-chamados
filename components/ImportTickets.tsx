@@ -50,6 +50,7 @@ interface ParsedTicket {
   createdAt?: string;
   deadline?: string;
   externalTicketId?: string;
+  constructorReturn?: string;
   row: number;
   error?: string;
 }
@@ -185,6 +186,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
 
         const abertura = parseExcelDate(row.Abertura || row.Data);
         const prazo = parseExcelDate(row.Prazo);
+        const retorno = row.Retorno || row['Retorno Construtora'] || '';
 
         // LOG CRÍTICO PARA DEBUG
         if (index < 3) { // Apenas primeiras 3 linhas
@@ -204,6 +206,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           createdAt: abertura, // Não usa fallback, fica undefined se não tiver
           deadline: prazo,
           externalTicketId: numeroChamado ? String(numeroChamado) : undefined,
+          constructorReturn: retorno || undefined,
           row: index + 2,
         };
 
@@ -338,6 +341,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
             createdAt: ticket.createdAt,
             deadline: ticket.deadline,
             externalTicketId: ticket.externalTicketId,
+            constructorReturn: ticket.constructorReturn,
           });
           imported++;
         } catch (error) {
