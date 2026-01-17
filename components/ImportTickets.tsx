@@ -106,12 +106,12 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
 
     // Se já for string de data
     if (typeof excelDate === 'string') {
-      const trimmed = excelDate.trim();
-      if (!trimmed || trimmed === '') {
+      const trimmed = excelDate.trim().toLowerCase();
+      if (!trimmed || trimmed === '' || trimmed === 'sem prazo' || trimmed.includes('sem prazo')) {
         return undefined;
       }
 
-      const date = new Date(trimmed);
+      const date = new Date(excelDate.trim());
       return isNaN(date.getTime()) ? undefined : date.toISOString();
     }
 
