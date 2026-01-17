@@ -539,9 +539,7 @@ export default function ChamadosPage() {
                           />
                         ) : (
                           <div className="text-blue-600 dark:text-blue-400 font-medium">
-                            {ticket.deadline
-                              ? formatDate(ticket.deadline)
-                              : formatDate(new Date(new Date(ticket.createdAt).getTime() + 5 * 24 * 60 * 60 * 1000).toISOString())}
+                            {ticket.deadline ? formatDate(ticket.deadline) : '--'}
                           </div>
                         )}
                       </td>
