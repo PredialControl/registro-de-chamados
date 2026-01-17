@@ -225,16 +225,34 @@ export const dataService = {
 
     // --- TICKETS ---
     getTickets: async (): Promise<Ticket[]> => {
-        const { data, error } = await supabase
-            .from('tickets')
-            .select('*')
-            .order('created_at', { ascending: false });
+        // Buscar TODOS os tickets com paginação para evitar limite de 1000
+        let allTickets: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-        if (error) {
-            console.error('Error fetching tickets:', error);
-            return [];
+        while (hasMore) {
+            const { data, error } = await supabase
+                .from('tickets')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+
+            if (error) {
+                console.error('Error fetching tickets:', error);
+                break;
+            }
+
+            if (data && data.length > 0) {
+                allTickets = [...allTickets, ...data];
+                hasMore = data.length === pageSize;
+                page++;
+            } else {
+                hasMore = false;
+            }
         }
-        return data.map(mapTicket);
+
+        return allTickets.map(mapTicket);
     },
 
     createTicket: async (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'status'>): Promise<{ ticket: Ticket | null; wasOffline: boolean }> => {
@@ -324,17 +342,35 @@ export const dataService = {
     getTicketsForUser: async (user: User): Promise<Ticket[]> => {
         if (user.role === 'admin') return dataService.getTickets();
 
-        const { data, error } = await supabase
-            .from('tickets')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
+        // Buscar TODOS os tickets do usuário com paginação
+        let allTickets: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-        if (error) {
-            console.error('Error fetching user tickets:', error);
-            return [];
+        while (hasMore) {
+            const { data, error } = await supabase
+                .from('tickets')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .range(page * pageSize, (page + 1) * pageSize - 1);
+
+            if (error) {
+                console.error('Error fetching user tickets:', error);
+                break;
+            }
+
+            if (data && data.length > 0) {
+                allTickets = [...allTickets, ...data];
+                hasMore = data.length === pageSize;
+                page++;
+            } else {
+                hasMore = false;
+            }
         }
-        return data.map(mapTicket);
+
+        return allTickets.map(mapTicket);
     },
 
     // --- USER MANAGEMENT (Admin only) ---
