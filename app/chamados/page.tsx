@@ -121,6 +121,7 @@ export default function ChamadosPage() {
       deadline: ticket.deadline,
       reprogrammingDate: ticket.reprogrammingDate,
       constructorReturn: ticket.constructorReturn,
+      responsible: ticket.responsible,
     });
   };
 
@@ -394,6 +395,7 @@ export default function ChamadosPage() {
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider text-blue-600 dark:text-blue-400 border-x border-border/50">Prazo</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider text-orange-600 dark:text-orange-400 border-x border-border/50">Reprogramação</th>
                   <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Retorno</th>
+                  <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Responsável</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Foto</th>
                   {isAdmin && <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Ações</th>}
                 </tr>
@@ -629,6 +631,28 @@ export default function ChamadosPage() {
                             <div className="truncate cursor-help" title={ticket.constructorReturn || ''}>
                               {ticket.constructorReturn || '--'}
                             </div>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
+                        {isAdmin && isEditing ? (
+                          <Select
+                            value={editForm.responsible || ''}
+                            onValueChange={(value) => setEditForm({ ...editForm, responsible: value as 'Condomínio' | 'Construtora' | undefined })}
+                          >
+                            <SelectTrigger className="h-8 text-xs bg-background">
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">--</SelectItem>
+                              <SelectItem value="Condomínio">Condomínio</SelectItem>
+                              <SelectItem value="Construtora">Construtora</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="text-xs font-medium">
+                            {ticket.responsible || '--'}
                           </div>
                         )}
                       </td>

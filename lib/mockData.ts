@@ -36,6 +36,7 @@ export interface Ticket {
     constructorReturn?: string;
     externalTicketId?: string;
     isRegistered?: boolean;
+    responsible?: 'Condomínio' | 'Construtora';
 }
 
 export const MOCK_BUILDINGS: Building[] = [

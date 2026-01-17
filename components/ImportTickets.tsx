@@ -51,6 +51,7 @@ interface ParsedTicket {
   deadline?: string;
   externalTicketId?: string;
   constructorReturn?: string;
+  responsible?: 'Condomínio' | 'Construtora';
   row: number;
   error?: string;
 }
@@ -97,6 +98,14 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
   const normalizeStatus = (status: string): string => {
     const normalized = status?.toLowerCase().trim();
     return STATUS_MAP[normalized] || 'aguardando_vistoria';
+  };
+
+  const normalizeResponsible = (responsible: string): 'Condomínio' | 'Construtora' | undefined => {
+    if (!responsible) return undefined;
+    const normalized = responsible.toLowerCase().trim();
+    if (normalized.includes('condom')) return 'Condomínio';
+    if (normalized.includes('constru')) return 'Construtora';
+    return undefined;
   };
 
   const parseExcelDate = (excelDate: any): string | undefined => {
@@ -187,6 +196,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
         const abertura = parseExcelDate(row.Abertura || row.Data);
         const prazo = parseExcelDate(row.Prazo);
         const retorno = row.Retorno || row['Retorno Construtora'] || '';
+        const responsavel = normalizeResponsible(row.Responsável || row.Responsavel || '');
 
         const ticket: ParsedTicket = {
           buildingId: selectedBuildingId,
@@ -198,6 +208,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           deadline: prazo,
           externalTicketId: numeroChamado ? String(numeroChamado) : undefined,
           constructorReturn: retorno || undefined,
+          responsible: responsavel,
           row: index + 2,
         };
 
@@ -333,6 +344,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
             deadline: ticket.deadline,
             externalTicketId: ticket.externalTicketId,
             constructorReturn: ticket.constructorReturn,
+            responsible: ticket.responsible,
           });
           imported++;
         } catch (error) {

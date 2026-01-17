@@ -20,7 +20,8 @@ const mapTicket = (dbTicket: any): Ticket => ({
     reprogrammingHistory: dbTicket.reprogramming_history || [],
     constructorReturn: dbTicket.constructor_return,
     externalTicketId: dbTicket.external_ticket_id,
-    isRegistered: dbTicket.is_registered
+    isRegistered: dbTicket.is_registered,
+    responsible: dbTicket.responsible
 });
 
 // Helper to map DB user to Frontend user
@@ -310,6 +311,7 @@ export const dataService = {
         if (updates.constructorReturn) dbUpdates.constructor_return = updates.constructorReturn;
         if (updates.externalTicketId) dbUpdates.external_ticket_id = updates.externalTicketId;
         if (updates.isRegistered !== undefined) dbUpdates.is_registered = updates.isRegistered;
+        if (updates.responsible !== undefined) dbUpdates.responsible = updates.responsible;
 
         const { error } = await supabase
             .from('tickets')
@@ -441,6 +443,7 @@ export const dataService = {
         deadline?: string;
         externalTicketId?: string;
         constructorReturn?: string;
+        responsible?: string;
     }): Promise<void> => {
         // Construir objeto base - SEMPRE incluir deadline e created_at (null se vazio)
         const insertData: any = {
@@ -456,6 +459,7 @@ export const dataService = {
             deadline: ticketData.deadline || null,
             external_ticket_id: ticketData.externalTicketId || null,
             constructor_return: ticketData.constructorReturn || null,
+            responsible: ticketData.responsible || null,
             is_registered: ticketData.externalTicketId ? true : false,
         };
 
