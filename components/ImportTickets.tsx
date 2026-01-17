@@ -184,6 +184,16 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
         const local = row.Local || 'Não especificado';
 
         const abertura = parseExcelDate(row.Abertura || row.Data);
+        const prazo = parseExcelDate(row.Prazo);
+
+        // LOG CRÍTICO PARA DEBUG
+        if (index < 3) { // Apenas primeiras 3 linhas
+          console.log(`🚨 LINHA ${index + 2}:`);
+          console.log('   Prazo RAW do Excel:', row.Prazo, typeof row.Prazo);
+          console.log('   Prazo após parse:', prazo);
+          console.log('   Prazo é undefined?', prazo === undefined);
+          console.log('   Prazo é null?', prazo === null);
+        }
 
         const ticket: ParsedTicket = {
           buildingId: selectedBuildingId,
@@ -192,7 +202,7 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
           description: descricao,
           status: normalizeStatus(row['Situação'] || row.Situação || row.Situacao || row.Status || ''),
           createdAt: abertura, // Não usa fallback, fica undefined se não tiver
-          deadline: parseExcelDate(row.Prazo),
+          deadline: prazo,
           externalTicketId: numeroChamado ? String(numeroChamado) : undefined,
           row: index + 2,
         };

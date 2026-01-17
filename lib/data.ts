@@ -458,6 +458,12 @@ export const dataService = {
             is_registered: ticketData.externalTicketId ? true : false,
         };
 
+        // LOG CRÍTICO
+        console.log('🚨🚨🚨 ENVIANDO AO SUPABASE:');
+        console.log('   deadline recebido:', ticketData.deadline);
+        console.log('   deadline enviado:', insertData.deadline);
+        console.log('   É null?', insertData.deadline === null);
+
         const { error } = await supabase
             .from('tickets')
             .insert(insertData);
