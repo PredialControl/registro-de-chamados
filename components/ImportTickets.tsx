@@ -188,15 +188,6 @@ export function ImportTickets({ buildings, userId, onImportComplete }: {
         const prazo = parseExcelDate(row.Prazo);
         const retorno = row.Retorno || row['Retorno Construtora'] || '';
 
-        // LOG CRÍTICO PARA DEBUG
-        if (index < 3) { // Apenas primeiras 3 linhas
-          console.log(`🚨 LINHA ${index + 2}:`);
-          console.log('   Prazo RAW do Excel:', row.Prazo, typeof row.Prazo);
-          console.log('   Prazo após parse:', prazo);
-          console.log('   Prazo é undefined?', prazo === undefined);
-          console.log('   Prazo é null?', prazo === null);
-        }
-
         const ticket: ParsedTicket = {
           buildingId: selectedBuildingId,
           buildingName: selectedBuilding?.name || '',
