@@ -21,7 +21,12 @@ import {
   Cell,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
-  Legend
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid
 } from 'recharts';
 
 type TicketStatus = Ticket['status'] | 'todos';
@@ -312,6 +317,31 @@ export default function ChamadosPage() {
     }))
     .filter(item => item.value > 0);
 
+  // Dados por responsável
+  const ticketsByResponsible = {
+    construtora: filteredTickets.filter(t => t.responsible === 'Construtora').length,
+    condominio: filteredTickets.filter(t => t.responsible === 'Condomínio').length,
+    naoDefinido: filteredTickets.filter(t => !t.responsible).length,
+  };
+
+  const responsibleChartData = [
+    {
+      name: 'Construtora',
+      value: ticketsByResponsible.construtora,
+      color: '#ef4444' // vermelho
+    },
+    {
+      name: 'Condomínio',
+      value: ticketsByResponsible.condominio,
+      color: '#3b82f6' // azul
+    },
+    ...(ticketsByResponsible.naoDefinido > 0 ? [{
+      name: 'Não Definido',
+      value: ticketsByResponsible.naoDefinido,
+      color: '#9ca3af' // cinza
+    }] : [])
+  ];
+
   // Gerar lista de meses disponíveis a partir dos tickets
   const availableMonths = Array.from(new Set(
     tickets
@@ -367,9 +397,10 @@ export default function ChamadosPage() {
           <CardTitle className="text-lg">Resumo de Chamados</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
             {/* Status List */}
             <div className="space-y-3">
+              <div className="text-xs font-bold text-muted-foreground uppercase mb-3">Por Status</div>
               {Object.entries(STATUS_CONFIG).map(([key, config]) => {
                 const count = key === 'itens_apontados' ? ticketsByStatus.todos : ticketsByStatus[key as keyof typeof ticketsByStatus];
                 const percentage = ticketsByStatus.todos > 0 ? (count / ticketsByStatus.todos) * 100 : 0;
@@ -393,33 +424,68 @@ export default function ChamadosPage() {
               })}
             </div>
 
-            {/* Pie Chart */}
-            <div className="h-[250px] w-full">
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip />
-                    <Legend verticalAlign="bottom" height={36} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex h-full items-center justify-center text-muted-foreground text-sm italic">
-                  Sem dados para o gráfico
-                </div>
-              )}
+            {/* Pie Chart - Status */}
+            <div className="flex flex-col">
+              <div className="text-xs font-bold text-muted-foreground uppercase mb-3">Distribuição de Status</div>
+              <div className="h-[250px] w-full">
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-muted-foreground text-sm italic">
+                    Sem dados para o gráfico
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bar Chart - Responsáveis */}
+            <div className="flex flex-col">
+              <div className="text-xs font-bold text-muted-foreground uppercase mb-3">Por Responsável</div>
+              <div className="h-[250px] w-full">
+                {responsibleChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={responsibleChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 12 }}
+                        angle={-15}
+                        textAnchor="end"
+                        height={60}
+                      />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <RechartsTooltip />
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                        {responsibleChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-muted-foreground text-sm italic">
+                    Sem dados para o gráfico
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
