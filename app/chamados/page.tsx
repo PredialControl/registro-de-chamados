@@ -213,10 +213,13 @@ export default function ChamadosPage() {
   const deleteTicket = async (ticketId: string) => {
     if (confirm('Tem certeza que deseja excluir este chamado?')) {
       try {
+        console.log('🗑️ Tentando excluir chamado:', ticketId);
         await dataService.deleteTicket(ticketId);
+        console.log('✅ Chamado excluído com sucesso!');
         await loadData();
         toast.success('Chamado excluído com sucesso!');
       } catch (error) {
+        console.error('❌ Erro ao excluir chamado:', error);
         toast.error('Erro ao excluir chamado.');
       }
     }
@@ -815,7 +818,10 @@ export default function ChamadosPage() {
                           ) : (
                             <div className="flex justify-center">
                               <button
-                                onClick={() => deleteTicket(ticket.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteTicket(ticket.id);
+                                }}
                                 className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                 title="Excluir"
                               >

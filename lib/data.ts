@@ -499,7 +499,10 @@ export const dataService = {
             .delete()
             .eq('id', ticketId);
 
-        if (error) console.error('Error deleting ticket:', error);
+        if (error) {
+            console.error('Error deleting ticket:', error);
+            throw error;
+        }
     },
 
     // Importação de chamados (permite setar created_at e status customizado)
