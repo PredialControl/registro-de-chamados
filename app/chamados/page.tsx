@@ -49,6 +49,8 @@ export default function ChamadosPage() {
   const [editingTicketNumberId, setEditingTicketNumberId] = useState<string | null>(null);
   const [editingTicketNumberValue, setEditingTicketNumberValue] = useState('');
   const [reprogrammingReason, setReprogrammingReason] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string>('todos');
+  const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -209,6 +211,14 @@ export default function ChamadosPage() {
     const statusMatch = selectedStatus === 'todos' || ticket.status === selectedStatus;
     const buildingMatch = selectedBuilding === 'todos' || ticket.buildingId === selectedBuilding;
 
+    // Filtro de data
+    const dateMatch = selectedDate === 'todos' ||
+      (ticket.createdAt && ticket.createdAt.split('T')[0] === selectedDate);
+
+    // Filtro de número
+    const numberMatch = !searchTicketNumber ||
+      (ticket.externalTicketId && ticket.externalTicketId.toLowerCase().includes(searchTicketNumber.toLowerCase()));
+
     // Filtro de Turma: Se não for admin, vê apenas chamados da sua própria turma
     let teamMatch = true;
     if (user?.role !== 'admin') {
@@ -216,7 +226,7 @@ export default function ChamadosPage() {
       teamMatch = ticketCreator?.turma === user?.turma;
     }
 
-    return statusMatch && buildingMatch && teamMatch;
+    return statusMatch && buildingMatch && dateMatch && numberMatch && teamMatch;
   });
 
   const ticketsByStatus = {
@@ -344,7 +354,7 @@ export default function ChamadosPage() {
       </Card>
 
       {/* Filters */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
         <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as TicketStatus)}>
           <SelectTrigger className="flex-1">
             <SelectValue placeholder="Status" />
@@ -372,6 +382,33 @@ export default function ChamadosPage() {
             </SelectContent>
           </Select>
         )}
+
+        {/* Data Filter */}
+        <div className="flex gap-1">
+          <Input
+            type="date"
+            value={selectedDate === 'todos' ? '' : selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value || 'todos')}
+            className="flex-1"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSelectedDate('todos')}
+            disabled={selectedDate === 'todos'}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Number Filter */}
+        <Input
+          type="text"
+          value={searchTicketNumber}
+          onChange={(e) => setSearchTicketNumber(e.target.value)}
+          placeholder="Buscar nº chamado..."
+          className="flex-1"
+        />
       </div>
 
       {/* Table */}
@@ -638,14 +675,14 @@ export default function ChamadosPage() {
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
                         {isAdmin && isEditing ? (
                           <Select
-                            value={editForm.responsible || ''}
-                            onValueChange={(value) => setEditForm({ ...editForm, responsible: value as 'Condomínio' | 'Construtora' | undefined })}
+                            value={editForm.responsible || 'none'}
+                            onValueChange={(value) => setEditForm({ ...editForm, responsible: value === 'none' ? undefined : value as 'Condomínio' | 'Construtora' })}
                           >
                             <SelectTrigger className="h-8 text-xs bg-background">
                               <SelectValue placeholder="Selecione..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">--</SelectItem>
+                              <SelectItem value="none">--</SelectItem>
                               <SelectItem value="Condomínio">Condomínio</SelectItem>
                               <SelectItem value="Construtora">Construtora</SelectItem>
                             </SelectContent>

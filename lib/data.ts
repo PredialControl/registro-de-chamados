@@ -4,6 +4,7 @@ import {
     Ticket,
     User
 } from './mockData';
+import { notificationService } from './notificationService';
 
 // Helper to map DB ticket to Frontend ticket
 const mapTicket = (dbTicket: any): Ticket => ({
@@ -319,6 +320,13 @@ export const dataService = {
     },
 
     updateTicket: async (ticketId: string, updates: Partial<Ticket>): Promise<void> => {
+        // Fetch original ticket to detect changes
+        const { data: originalTicket } = await supabase
+            .from('tickets')
+            .select('status, constructor_return, external_ticket_id, building_id')
+            .eq('id', ticketId)
+            .single();
+
         const dbUpdates: any = {};
         if (updates.status) dbUpdates.status = updates.status;
         if (updates.location) dbUpdates.location = updates.location;
@@ -336,7 +344,34 @@ export const dataService = {
             .update(dbUpdates)
             .eq('id', ticketId);
 
-        if (error) console.error('Error updating ticket:', error);
+        if (error) {
+            console.error('Error updating ticket:', error);
+            return;
+        }
+
+        // Send notifications for changes
+        if (originalTicket) {
+            // Status change notification
+            if (updates.status && updates.status !== originalTicket.status) {
+                await notificationService.sendStatusChangeNotification(
+                    ticketId,
+                    originalTicket.status,
+                    updates.status,
+                    originalTicket.external_ticket_id,
+                    originalTicket.building_id
+                );
+            }
+
+            // Comment notification
+            if (updates.constructorReturn && updates.constructorReturn !== originalTicket.constructor_return) {
+                await notificationService.sendCommentNotification(
+                    ticketId,
+                    updates.constructorReturn,
+                    originalTicket.external_ticket_id,
+                    originalTicket.building_id
+                );
+            }
+        }
     },
 
     getTicketsForUser: async (user: User): Promise<Ticket[]> => {

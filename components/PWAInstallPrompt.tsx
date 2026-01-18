@@ -62,29 +62,37 @@ export default function PWAInstallPrompt() {
     return (
         <>
             {/* INSTALL BUTTON FLOATING CARD */}
-            <div className="fixed bottom-24 left-4 right-4 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500">
-                <Card className="bg-primary text-primary-foreground border-none shadow-2xl overflow-hidden">
+            <div className="fixed bottom-24 left-2 right-2 z-50 animate-in slide-in-from-bottom-10 fade-in duration-500">
+                <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white border-none shadow-2xl overflow-hidden relative">
+                    {/* NOVO Badge */}
+                    <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-xs font-bold shadow-lg animate-bounce z-10">
+                        NOVO!
+                    </div>
+
+                    {/* Pulsing Background Effect */}
+                    <div className="absolute inset-0 bg-blue-500 animate-pulse opacity-20 rounded-lg" />
+
                     <div className="absolute top-0 right-0 p-1">
-                        <Button variant="ghost" size="icon" onClick={() => setIsVisible(false)} className="h-6 w-6 text-primary-foreground/50 hover:text-primary-foreground">
+                        <Button variant="ghost" size="icon" onClick={() => setIsVisible(false)} className="h-6 w-6 text-white/50 hover:text-white">
                             <X className="w-4 h-4" />
                         </Button>
                     </div>
-                    <CardContent className="p-4 flex items-center gap-4">
-                        <div className="bg-white/20 p-3 rounded-2xl">
-                            <Smartphone className="w-6 h-6" />
+                    <CardContent className="p-6 flex items-center gap-5 relative z-10">
+                        <div className="bg-white/30 p-4 rounded-2xl">
+                            <Smartphone className="w-8 h-8" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-bold text-sm leading-tight">Instale nosso App!</h3>
-                            <p className="text-[10px] text-primary-foreground/80">
+                            <h3 className="font-bold text-lg leading-tight">Instale nosso App!</h3>
+                            <p className="text-sm text-white/90">
                                 {isIOS ? "Acesso rápido no seu iPhone" : "Use offline e acesse rápido"}
                             </p>
                         </div>
                         <Button
-                            size="sm"
+                            size="lg"
                             onClick={handleInstallClick}
-                            className="bg-white text-primary hover:bg-white/90 font-bold px-4 rounded-full text-xs shadow-lg"
+                            className="bg-white text-blue-600 hover:bg-white/90 font-bold px-6 rounded-full text-sm shadow-lg"
                         >
-                            {isIOS ? "INSTALAR" : "BAIXAR"} <Download className="w-3 h-3 ml-2" />
+                            {isIOS ? "INSTALAR" : "BAIXAR"} <Download className="w-4 h-4 ml-2" />
                         </Button>
                     </CardContent>
                 </Card>
