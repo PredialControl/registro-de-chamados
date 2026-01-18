@@ -706,6 +706,48 @@ export default function ChamadosPage() {
                                 placeholder="Motivo da reprogramação..."
                               />
                             )}
+
+                            {/* Lista de reprogramações existentes com botão de deletar */}
+                            {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
+                              <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/10 rounded border border-amber-200 dark:border-amber-800">
+                                <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 mb-1">Reprogramações anteriores:</div>
+                                <div className="space-y-1">
+                                  {ticket.reprogrammingHistory.map((entry: any, index: number) => {
+                                    const isObject = typeof entry === 'object' && entry.date;
+                                    const date = isObject ? entry.date : entry;
+
+                                    return (
+                                      <div key={index} className="flex items-center justify-between gap-1 text-xs">
+                                        <span className="text-amber-700 dark:text-amber-300 font-semibold">
+                                          {formatDate(date)}
+                                        </span>
+                                        <button
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (confirm(`Deletar reprogramação de ${formatDate(date)}?`)) {
+                                              const updatedHistory = ticket.reprogrammingHistory.filter((_: any, i: number) => i !== index);
+                                              try {
+                                                await dataService.updateTicket(ticket.id, {
+                                                  reprogrammingHistory: updatedHistory
+                                                });
+                                                await loadData();
+                                                toast.success('Reprogramação deletada!');
+                                              } catch (error) {
+                                                toast.error('Erro ao deletar reprogramação.');
+                                              }
+                                            }
+                                          }}
+                                          className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors"
+                                          title="Deletar reprogramação"
+                                        >
+                                          <X className="w-3 h-3 text-red-600" />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="space-y-1">
