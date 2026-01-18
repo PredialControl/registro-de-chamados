@@ -53,6 +53,7 @@ export default function ChamadosPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('todos');
   const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -518,11 +519,16 @@ export default function ChamadosPage() {
                     <tr
                       key={ticket.id}
                       className={cn(
-                        "hover:bg-muted/30 transition-colors border-b border-border bg-background",
-                        isEditing && "bg-accent/50",
-                        isAdmin && "cursor-pointer"
+                        "hover:bg-muted/30 transition-colors border-b border-border bg-background cursor-pointer",
+                        isEditing && "bg-accent/50"
                       )}
-                      onClick={() => isAdmin && !isEditing && !editingTicketNumberId && startEdit(ticket)}
+                      onClick={() => {
+                        if (isAdmin && !isEditing && !editingTicketNumberId) {
+                          startEdit(ticket);
+                        } else if (!isAdmin) {
+                          setViewingTicket(ticket);
+                        }
+                      }}
                     >
                       <td className="px-3 py-4 font-bold text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
                         {editingTicketNumberId === ticket.id ? (
@@ -827,6 +833,165 @@ export default function ChamadosPage() {
           </div>
         </Card>
       )}
+      {/* View Ticket Modal (Read-only for non-admin users) */}
+      {viewingTicket && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <Card className="w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border">
+            <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  Detalhes do Chamado
+                  {viewingTicket.externalTicketId && (
+                    <span className="text-sm bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold">
+                      Nº {viewingTicket.externalTicketId}
+                    </span>
+                  )}
+                </CardTitle>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {buildings.find(b => b.id === viewingTicket.buildingId)?.name || 'Prédio não encontrado'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setViewingTicket(null)}
+                className="hover:bg-muted"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-6 overflow-y-auto space-y-4">
+              {/* Localização */}
+              <div>
+                <label className="text-sm font-semibold text-foreground">Localização</label>
+                <p className="text-sm text-muted-foreground mt-1">{viewingTicket.location || '--'}</p>
+              </div>
+
+              {/* Descrição */}
+              <div>
+                <label className="text-sm font-semibold text-foreground">Descrição</label>
+                <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{viewingTicket.description || '--'}</p>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="text-sm font-semibold text-foreground">Status</label>
+                <div className="mt-1">
+                  <span className={cn(
+                    "inline-block px-3 py-1 rounded-full text-xs font-medium",
+                    STATUS_CONFIG[viewingTicket.status].color
+                  )}>
+                    {STATUS_CONFIG[viewingTicket.status].label}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Data de Criação */}
+                <div>
+                  <label className="text-sm font-semibold text-foreground">Data de Criação</label>
+                  <p className="text-sm text-muted-foreground mt-1">{formatDate(viewingTicket.createdAt)}</p>
+                </div>
+
+                {/* Prazo */}
+                <div>
+                  <label className="text-sm font-semibold text-foreground">Prazo</label>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-1 font-medium">
+                    {viewingTicket.deadline ? formatDate(viewingTicket.deadline) : '--'}
+                  </p>
+                </div>
+
+                {/* Data de Reprogramação */}
+                {viewingTicket.reprogrammingDate && (
+                  <div>
+                    <label className="text-sm font-semibold text-foreground">Reprogramado para</label>
+                    <p className="text-sm text-orange-600 dark:text-orange-400 mt-1 font-medium">
+                      {formatDate(viewingTicket.reprogrammingDate)}
+                    </p>
+                  </div>
+                )}
+
+                {/* Responsável */}
+                {viewingTicket.responsible && (
+                  <div>
+                    <label className="text-sm font-semibold text-foreground">Responsável</label>
+                    <p className="text-sm text-muted-foreground mt-1">{viewingTicket.responsible}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Retorno da Construtora */}
+              {viewingTicket.constructorReturn && (
+                <div>
+                  <label className="text-sm font-semibold text-foreground">Retorno da Construtora</label>
+                  <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{viewingTicket.constructorReturn}</p>
+                </div>
+              )}
+
+              {/* Histórico de Reprogramações */}
+              {viewingTicket.reprogrammingHistory && viewingTicket.reprogrammingHistory.length > 0 && (
+                <div>
+                  <label className="text-sm font-semibold text-foreground">Histórico de Reprogramações</label>
+                  <div className="mt-2 space-y-2">
+                    {viewingTicket.reprogrammingHistory.map((item, index) => (
+                      <Card key={index} className="p-3 bg-muted/50">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-semibold">Data:</span> {formatDate(item.date)}
+                            </p>
+                            {item.reason && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                <span className="font-semibold">Motivo:</span> {item.reason}
+                              </p>
+                            )}
+                          </div>
+                          <span className="text-[10px] bg-orange-600 text-white px-2 py-0.5 rounded-full font-bold">
+                            #{index + 1}
+                          </span>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Fotos */}
+              {viewingTicket.photoUrls && viewingTicket.photoUrls.length > 0 && (
+                <div>
+                  <label className="text-sm font-semibold text-foreground">Evidências ({viewingTicket.photoUrls.length} fotos)</label>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {viewingTicket.photoUrls.map((url, index) => (
+                      <div
+                        key={index}
+                        className="relative aspect-square rounded-md overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                        onClick={() => {
+                          setViewingTicket(null);
+                          setSelectedTicketForGallery(viewingTicket);
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={url}
+                          alt={`Evidência ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] text-center py-1">
+                          Foto {index + 1}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    Clique em uma foto para ver todas em tamanho maior
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Gallery Modal */}
       {selectedTicketForGallery && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
