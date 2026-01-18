@@ -218,9 +218,11 @@ export default function ChamadosPage() {
         console.log('✅ Chamado excluído com sucesso!');
         await loadData();
         toast.success('Chamado excluído com sucesso!');
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Erro ao excluir chamado:', error);
-        toast.error('Erro ao excluir chamado.');
+        const errorMessage = error?.message || 'Erro desconhecido ao excluir chamado.';
+        toast.error(errorMessage);
+        alert(`ERRO AO EXCLUIR:\n\n${errorMessage}\n\nVerifique o console (F12) para mais detalhes.`);
       }
     }
   };

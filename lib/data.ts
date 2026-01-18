@@ -494,15 +494,33 @@ export const dataService = {
     },
 
     deleteTicket: async (ticketId: string): Promise<void> => {
-        const { error } = await supabase
+        console.log('🗑️ Iniciando exclusão do ticket:', ticketId);
+
+        const { data, error } = await supabase
             .from('tickets')
             .delete()
-            .eq('id', ticketId);
+            .eq('id', ticketId)
+            .select();
+
+        console.log('📊 Resposta do Supabase:', { data, error });
 
         if (error) {
-            console.error('Error deleting ticket:', error);
-            throw error;
+            console.error('❌ Error deleting ticket:', error);
+            console.error('Detalhes do erro:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code
+            });
+            throw new Error(`Erro ao excluir chamado: ${error.message}`);
         }
+
+        if (!data || data.length === 0) {
+            console.warn('⚠️ Nenhum registro foi deletado. Ticket não encontrado ou sem permissão.');
+            throw new Error('Chamado não encontrado ou você não tem permissão para excluí-lo.');
+        }
+
+        console.log('✅ Ticket deletado com sucesso:', data);
     },
 
     // Importação de chamados (permite setar created_at e status customizado)
