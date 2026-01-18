@@ -323,7 +323,7 @@ export const dataService = {
         // Fetch original ticket to detect changes
         const { data: originalTicket } = await supabase
             .from('tickets')
-            .select('status, constructor_return, external_ticket_id, building_id')
+            .select('status, constructor_return, external_ticket_id, building_id, reprogramming_history')
             .eq('id', ticketId)
             .single();
 
@@ -333,21 +333,35 @@ export const dataService = {
         if (updates.description) dbUpdates.description = updates.description;
         if (updates.deadline) dbUpdates.deadline = updates.deadline;
         if (updates.reprogrammingDate) dbUpdates.reprogramming_date = updates.reprogrammingDate;
-        if (updates.reprogrammingHistory) dbUpdates.reprogramming_history = updates.reprogrammingHistory;
+        if (updates.reprogrammingHistory !== undefined) {
+            console.log('📝 Salvando histórico de reprogramação:', {
+                ticketId,
+                oldHistory: originalTicket?.reprogramming_history,
+                newHistory: updates.reprogrammingHistory,
+                historyLength: updates.reprogrammingHistory?.length || 0,
+                isArray: Array.isArray(updates.reprogrammingHistory)
+            });
+            dbUpdates.reprogramming_history = updates.reprogrammingHistory;
+        }
         if (updates.constructorReturn) dbUpdates.constructor_return = updates.constructorReturn;
         if (updates.externalTicketId) dbUpdates.external_ticket_id = updates.externalTicketId;
         if (updates.isRegistered !== undefined) dbUpdates.is_registered = updates.isRegistered;
         if (updates.responsible !== undefined) dbUpdates.responsible = updates.responsible;
 
-        const { error } = await supabase
+        console.log('🔄 Atualizando ticket no banco:', { ticketId, dbUpdates });
+
+        const { data, error } = await supabase
             .from('tickets')
             .update(dbUpdates)
-            .eq('id', ticketId);
+            .eq('id', ticketId)
+            .select();
 
         if (error) {
-            console.error('Error updating ticket:', error);
+            console.error('❌ Error updating ticket:', error);
             return;
         }
+
+        console.log('✅ Ticket atualizado com sucesso:', data);
 
         // Send notifications for changes
         if (originalTicket) {

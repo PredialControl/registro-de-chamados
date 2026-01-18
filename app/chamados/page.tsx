@@ -194,11 +194,20 @@ export default function ChamadosPage() {
       updatedHistory = [...updatedHistory, newEntry];
     }
 
+    const updateData = {
+      ...editForm,
+      reprogrammingHistory: updatedHistory
+    };
+
+    console.log('📤 Enviando atualização para dataService:', {
+      ticketId: editingTicketId,
+      updateData,
+      historyLength: updatedHistory.length,
+      hasHistory: updatedHistory.length > 0
+    });
+
     try {
-      await dataService.updateTicket(editingTicketId, {
-        ...editForm,
-        reprogrammingHistory: updatedHistory
-      });
+      await dataService.updateTicket(editingTicketId, updateData);
 
       await loadData();
       setEditingTicketId(null);
@@ -206,6 +215,7 @@ export default function ChamadosPage() {
       setReprogrammingReason('');
       toast.success('Chamado atualizado com sucesso!');
     } catch (error) {
+      console.error('❌ Erro ao atualizar:', error);
       toast.error('Erro ao atualizar chamado.');
     }
   };
