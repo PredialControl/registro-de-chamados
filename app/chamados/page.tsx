@@ -73,6 +73,18 @@ export default function ChamadosPage() {
           dataService.getUsers()
         ]);
 
+        // Debug: mostrar tickets com histórico de reprogramação
+        const ticketsWithHistory = userTickets.filter(t => t.reprogrammingHistory && t.reprogrammingHistory.length > 0);
+        if (ticketsWithHistory.length > 0) {
+          console.log('📥 CARREGADOS do banco - Tickets com histórico:', ticketsWithHistory.map(t => ({
+            id: t.externalTicketId || t.id.substring(0, 8),
+            historyLength: t.reprogrammingHistory?.length,
+            history: t.reprogrammingHistory
+          })));
+        } else {
+          console.log('📥 CARREGADOS do banco - Nenhum ticket com histórico encontrado');
+        }
+
         setTickets(userTickets);
         setBuildings(userBuildings);
         setUsers(allUsers);
@@ -85,7 +97,17 @@ export default function ChamadosPage() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '--';
+
+    // Se for formato YYYY-MM-DD, converter manualmente para evitar problemas de timezone
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-');
+      return `${day}/${month}/${year}`;
+    }
+
+    // Para outros formatos, usar Date
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '--';
+
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -157,6 +179,15 @@ export default function ChamadosPage() {
         updatedAt: new Date().toISOString()
       };
 
+      console.log('💾 SALVANDO Nova Entrada de Reprogramação:', {
+        newEntry,
+        newEntryStringified: JSON.stringify(newEntry),
+        reprogrammingDate: editForm.reprogrammingDate,
+        reprogrammingReason: reprogrammingReason.trim(),
+        historyBefore: updatedHistory.length,
+        historyAfter: updatedHistory.length + 1
+      });
+
       updatedHistory = [...updatedHistory, newEntry];
     }
 
@@ -219,14 +250,7 @@ export default function ChamadosPage() {
     const numberMatch = !searchTicketNumber ||
       (ticket.externalTicketId && ticket.externalTicketId.toLowerCase().includes(searchTicketNumber.toLowerCase()));
 
-    // Filtro de Turma: Se não for admin, vê apenas chamados da sua própria turma
-    let teamMatch = true;
-    if (user?.role !== 'admin') {
-      const ticketCreator = users.find(u => u.id === ticket.userId);
-      teamMatch = ticketCreator?.turma === user?.turma;
-    }
-
-    return statusMatch && buildingMatch && dateMatch && numberMatch && teamMatch;
+    return statusMatch && buildingMatch && dateMatch && numberMatch;
   });
 
   const ticketsByStatus = {
@@ -609,9 +633,43 @@ export default function ChamadosPage() {
                               </div>
                             )}
                             {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
-                              <div className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                              <div
+                                className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium cursor-help relative group"
+                                title="Ver histórico de reprogramações"
+                              >
                                 <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center font-bold text-[10px]">!</span>
                                 Reprogramado {ticket.reprogrammingHistory.length}x
+
+                                {/* Tooltip com histórico */}
+                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-64 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
+                                  <div className="text-xs font-bold mb-2 text-gray-900 dark:text-gray-100">Histórico de Reprogramações:</div>
+                                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {ticket.reprogrammingHistory.map((entry: any, index: number) => {
+                                      const isObject = typeof entry === 'object' && entry.date;
+                                      const date = isObject ? entry.date : entry;
+                                      const reason = isObject ? entry.reason : '';
+
+                                      // Debug no console com detalhes completos
+                                      console.log(`🔍 DEBUG Entry [${index}]:`);
+                                      console.log(`   - Type: ${typeof entry}`);
+                                      console.log(`   - Keys: ${entry && typeof entry === 'object' ? Object.keys(entry).join(', ') : 'N/A'}`);
+                                      console.log(`   - Full JSON: ${JSON.stringify(entry)}`);
+                                      console.log(`   - isObject: ${isObject}`);
+                                      console.log(`   - date extracted: ${date}`);
+                                      console.log(`   - reason extracted: ${reason}`);
+                                      console.log(`   - formatted: ${formatDate(date)}`);
+
+                                      return (
+                                        <div key={index} className="text-amber-700 dark:text-amber-300 pb-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                                          <div className="font-semibold">{formatDate(date)}</div>
+                                          {reason && <div className="text-[10px] mt-1 text-gray-600 dark:text-gray-400">{reason}</div>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  {/* Seta do tooltip */}
+                                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-white dark:border-t-gray-800"></div>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -627,43 +685,7 @@ export default function ChamadosPage() {
                             placeholder="Retorno da construtora..."
                           />
                         ) : (
-                          <div className="max-w-[250px] text-xs space-y-1">
-                            {/* Histórico de reprogramações */}
-                            {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
-                              <div className="space-y-1 mb-2 pb-2 border-b border-border">
-                                {ticket.reprogrammingHistory.map((entry: any, index: number) => {
-                                  // Suportar formato antigo (string) e novo (objeto)
-                                  const isObject = typeof entry === 'object' && entry.updatedAt;
-                                  const date = isObject ? entry.updatedAt : entry;
-                                  const reason = isObject ? entry.reason : '';
-
-                                  return (
-                                    <div key={index} className="text-amber-600 dark:text-amber-400 italic flex justify-between items-start gap-2">
-                                      <div className="flex-1">
-                                        <div className="font-bold">Atualização {formatDate(date)}</div>
-                                        {reason && <div className="text-[10px]">{reason}</div>}
-                                      </div>
-                                      {isAdmin && isEditing && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            const newHistory = ticket.reprogrammingHistory?.filter((_, i) => i !== index) || [];
-                                            dataService.updateTicket(ticket.id, { reprogrammingHistory: newHistory }).then(() => {
-                                              loadData();
-                                              toast.success('Motivo removido!');
-                                            });
-                                          }}
-                                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                                          title="Remover este motivo"
-                                        >
-                                          <X className="w-3 h-3" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                          <div className="max-w-[250px] text-xs">
                             {/* Retorno da construtora */}
                             <div className="truncate cursor-help" title={ticket.constructorReturn || ''}>
                               {ticket.constructorReturn || '--'}

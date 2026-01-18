@@ -377,7 +377,7 @@ export const dataService = {
     getTicketsForUser: async (user: User): Promise<Ticket[]> => {
         if (user.role === 'admin') return dataService.getTickets();
 
-        // Buscar TODOS os tickets do usuário com paginação
+        // Buscar TODOS os tickets dos prédios que o usuário tem acesso
         let allTickets: any[] = [];
         let page = 0;
         const pageSize = 1000;
@@ -387,7 +387,7 @@ export const dataService = {
             const { data, error } = await supabase
                 .from('tickets')
                 .select('*')
-                .eq('user_id', user.id)
+                .in('building_id', user.allowedBuildings)
                 .order('created_at', { ascending: false })
                 .range(page * pageSize, (page + 1) * pageSize - 1);
 
