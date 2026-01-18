@@ -397,17 +397,17 @@ export default function ChamadosPage() {
           <CardTitle className="text-lg">Resumo de Chamados</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-8 items-start">
             {/* Status List */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {Object.entries(STATUS_CONFIG).map(([key, config]) => {
                 const count = key === 'itens_apontados' ? ticketsByStatus.todos : ticketsByStatus[key as keyof typeof ticketsByStatus];
                 const percentage = ticketsByStatus.todos > 0 ? (count / ticketsByStatus.todos) * 100 : 0;
                 return (
                   <div key={key} className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-foreground">{config.label}</span>
-                      <span className="text-sm font-bold text-foreground">{count}</span>
+                      <span className="text-xs font-medium text-foreground">{config.label}</span>
+                      <span className="text-xs font-bold text-foreground">{count}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div
@@ -426,7 +426,7 @@ export default function ChamadosPage() {
             {/* Charts - Lado a lado */}
             <div className="grid grid-cols-2 gap-6">
               {/* Pie Chart - Status */}
-              <div className="h-[380px] w-full">
+              <div className="h-[420px] w-full">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -434,8 +434,8 @@ export default function ChamadosPage() {
                         data={chartData}
                         cx="50%"
                         cy="45%"
-                        innerRadius={70}
-                        outerRadius={100}
+                        innerRadius={85}
+                        outerRadius={120}
                         paddingAngle={5}
                         dataKey="value"
                       >
@@ -444,7 +444,7 @@ export default function ChamadosPage() {
                         ))}
                       </Pie>
                       <RechartsTooltip />
-                      <Legend verticalAlign="bottom" height={50} iconSize={10} />
+                      <Legend verticalAlign="bottom" height={50} iconSize={10} wrapperStyle={{ fontSize: '12px' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -455,21 +455,21 @@ export default function ChamadosPage() {
               </div>
 
               {/* Bar Chart - Responsáveis */}
-              <div className="h-[380px] w-full">
+              <div className="h-[420px] w-full">
                 {responsibleChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={responsibleChartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
                       <XAxis
                         dataKey="name"
-                        tick={{ fontSize: 12 }}
+                        tick={{ fontSize: 13 }}
                         angle={-15}
                         textAnchor="end"
                         height={80}
                       />
-                      <YAxis tick={{ fontSize: 12 }} width={50} />
+                      <YAxis tick={{ fontSize: 13 }} width={55} />
                       <RechartsTooltip />
-                      <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={60}>
+                      <Bar dataKey="value" radius={[10, 10, 0, 0]} barSize={80}>
                         {responsibleChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
