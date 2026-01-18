@@ -50,7 +50,9 @@ export default function ChamadosPage() {
   const [editingTicketNumberValue, setEditingTicketNumberValue] = useState('');
   const [reprogrammingReason, setReprogrammingReason] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>('todos');
+  const [selectedMonth, setSelectedMonth] = useState<string>('todos');
   const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
+  const [searchKeyword, setSearchKeyword] = useState<string>('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -242,15 +244,24 @@ export default function ChamadosPage() {
     const statusMatch = selectedStatus === 'todos' || ticket.status === selectedStatus;
     const buildingMatch = selectedBuilding === 'todos' || ticket.buildingId === selectedBuilding;
 
-    // Filtro de data
+    // Filtro de data específica
     const dateMatch = selectedDate === 'todos' ||
       (ticket.createdAt && ticket.createdAt.split('T')[0] === selectedDate);
+
+    // Filtro de mês
+    const monthMatch = selectedMonth === 'todos' ||
+      (ticket.createdAt && ticket.createdAt.substring(0, 7) === selectedMonth);
 
     // Filtro de número
     const numberMatch = !searchTicketNumber ||
       (ticket.externalTicketId && ticket.externalTicketId.toLowerCase().includes(searchTicketNumber.toLowerCase()));
 
-    return statusMatch && buildingMatch && dateMatch && numberMatch;
+    // Filtro de palavra-chave (busca em descrição e localização)
+    const keywordMatch = !searchKeyword ||
+      (ticket.description && ticket.description.toLowerCase().includes(searchKeyword.toLowerCase())) ||
+      (ticket.location && ticket.location.toLowerCase().includes(searchKeyword.toLowerCase()));
+
+    return statusMatch && buildingMatch && dateMatch && monthMatch && numberMatch && keywordMatch;
   });
 
   const ticketsByStatus = {
@@ -270,6 +281,13 @@ export default function ChamadosPage() {
       color: config.chartColor
     }))
     .filter(item => item.value > 0);
+
+  // Gerar lista de meses disponíveis a partir dos tickets
+  const availableMonths = Array.from(new Set(
+    tickets
+      .filter(t => t.createdAt)
+      .map(t => t.createdAt.substring(0, 7))
+  )).sort((a, b) => b.localeCompare(a)); // Ordem decrescente (mais recente primeiro)
 
   const isAdmin = user?.role === 'admin';
 
@@ -407,6 +425,25 @@ export default function ChamadosPage() {
           </Select>
         )}
 
+        {/* Month Filter */}
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder="Filtrar por mês" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os meses</SelectItem>
+            {availableMonths.map(month => {
+              const [year, monthNum] = month.split('-');
+              const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+              return (
+                <SelectItem key={month} value={month}>
+                  {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+
         {/* Data Filter */}
         <div className="flex gap-1">
           <Input
@@ -414,6 +451,7 @@ export default function ChamadosPage() {
             value={selectedDate === 'todos' ? '' : selectedDate}
             onChange={(e) => setSelectedDate(e.target.value || 'todos')}
             className="flex-1"
+            placeholder="Data específica"
           />
           <Button
             variant="ghost"
@@ -431,6 +469,15 @@ export default function ChamadosPage() {
           value={searchTicketNumber}
           onChange={(e) => setSearchTicketNumber(e.target.value)}
           placeholder="Buscar nº chamado..."
+          className="flex-1"
+        />
+
+        {/* Keyword Filter */}
+        <Input
+          type="text"
+          value={searchKeyword}
+          onChange={(e) => setSearchKeyword(e.target.value)}
+          placeholder="Buscar palavra-chave..."
           className="flex-1"
         />
       </div>
