@@ -397,10 +397,9 @@ export default function ChamadosPage() {
           <CardTitle className="text-lg">Resumo de Chamados</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             {/* Status List */}
             <div className="space-y-3">
-              <div className="text-xs font-bold text-muted-foreground uppercase mb-3">Por Status</div>
               {Object.entries(STATUS_CONFIG).map(([key, config]) => {
                 const count = key === 'itens_apontados' ? ticketsByStatus.todos : ticketsByStatus[key as keyof typeof ticketsByStatus];
                 const percentage = ticketsByStatus.todos > 0 ? (count / ticketsByStatus.todos) * 100 : 0;
@@ -424,10 +423,10 @@ export default function ChamadosPage() {
               })}
             </div>
 
-            {/* Pie Chart - Status */}
-            <div className="flex flex-col">
-              <div className="text-xs font-bold text-muted-foreground uppercase mb-3">Distribuição de Status</div>
-              <div className="h-[250px] w-full">
+            {/* Charts - Lado a lado */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Pie Chart - Status */}
+              <div className="h-[280px] w-full">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -435,8 +434,8 @@ export default function ChamadosPage() {
                         data={chartData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
+                        innerRadius={50}
+                        outerRadius={70}
                         paddingAngle={5}
                         dataKey="value"
                       >
@@ -445,35 +444,32 @@ export default function ChamadosPage() {
                         ))}
                       </Pie>
                       <RechartsTooltip />
-                      <Legend verticalAlign="bottom" height={36} />
+                      <Legend verticalAlign="bottom" height={36} iconSize={8} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex h-full items-center justify-center text-muted-foreground text-sm italic">
-                    Sem dados para o gráfico
+                    Sem dados
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Bar Chart - Responsáveis */}
-            <div className="flex flex-col">
-              <div className="text-xs font-bold text-muted-foreground uppercase mb-3">Por Responsável</div>
-              <div className="h-[250px] w-full">
+              {/* Bar Chart - Responsáveis */}
+              <div className="h-[280px] w-full">
                 {responsibleChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={responsibleChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
                       <XAxis
                         dataKey="name"
-                        tick={{ fontSize: 12 }}
-                        angle={-15}
+                        tick={{ fontSize: 11 }}
+                        angle={-20}
                         textAnchor="end"
-                        height={60}
+                        height={70}
                       />
-                      <YAxis tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 11 }} width={40} />
                       <RechartsTooltip />
-                      <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                      <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                         {responsibleChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
@@ -482,7 +478,7 @@ export default function ChamadosPage() {
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex h-full items-center justify-center text-muted-foreground text-sm italic">
-                    Sem dados para o gráfico
+                    Sem dados
                   </div>
                 )}
               </div>
