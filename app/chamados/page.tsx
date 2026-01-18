@@ -175,6 +175,8 @@ export default function ChamadosPage() {
 
     // Lógica de histórico de reprogramação
     let updatedHistory = originalTicket.reprogrammingHistory || [];
+    let updatedConstructorReturn = editForm.constructorReturn || originalTicket.constructorReturn || '';
+
     if (hasReprogrammingChange) {
       const newEntry = {
         date: editForm.reprogrammingDate!,
@@ -192,11 +194,23 @@ export default function ChamadosPage() {
       });
 
       updatedHistory = [...updatedHistory, newEntry];
+
+      // Adicionar motivo da reprogramação ao campo Retorno com a data de hoje
+      const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const reprogrammingNote = `[${today}] Reprogramação: ${reprogrammingReason.trim()}`;
+
+      // Se já existe retorno, adiciona no final com quebra de linha
+      if (updatedConstructorReturn.trim()) {
+        updatedConstructorReturn = `${updatedConstructorReturn}\n\n${reprogrammingNote}`;
+      } else {
+        updatedConstructorReturn = reprogrammingNote;
+      }
     }
 
     const updateData = {
       ...editForm,
-      reprogrammingHistory: updatedHistory
+      reprogrammingHistory: updatedHistory,
+      constructorReturn: updatedConstructorReturn
     };
 
     console.log('📤 Enviando atualização para dataService:', {
