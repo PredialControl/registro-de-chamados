@@ -361,33 +361,50 @@ export default function ChamadosPage() {
 
   return (
     <div className="p-4 pt-6 space-y-4 pb-24">
-      <header className="grid grid-cols-3 items-center mb-6">
-        <div className="text-left">
-          <h1 className="text-2xl font-bold text-foreground">Meus Chamados</h1>
+      <header className="mb-6 space-y-3">
+        {/* Linha 1: Logo/Título + Controles no mobile e desktop */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Logo e Título */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg">
+              <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-lg md:text-2xl font-bold text-foreground leading-none">Chamados</h1>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-none mt-0.5">Sistema de Gestão</p>
+            </div>
+          </div>
+
+          {/* Controles do usuário */}
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="hidden md:flex items-center gap-2 pr-2 border-r border-border mr-1">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-black uppercase text-foreground leading-none">{user.name}</span>
+                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest leading-tight">{user.role}</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-sm ring-2 ring-background">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <div className="md:hidden w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-sm ring-2 ring-background">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <ThemeToggle />
+            <Button onClick={loadData} variant="outline" size="sm" className="h-8 w-8 p-0">
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
-        <div className="text-center">
-          <h2 className="text-2xl font-black text-blue-600 dark:text-blue-400 uppercase tracking-tighter">
+        {/* Linha 2: Nome do Prédio */}
+        <div className="text-center md:text-center">
+          <h2 className="text-base md:text-2xl font-black text-blue-600 dark:text-blue-400 uppercase tracking-tight md:tracking-tighter truncate">
             {selectedBuilding === 'todos'
               ? 'Todos os Prédios'
               : buildings.find(b => b.id === selectedBuilding)?.name || 'N/A'}
           </h2>
-        </div>
-
-        <div className="flex items-center justify-end gap-3">
-          <div className="flex items-center gap-2 pr-2 border-r border-border mr-1">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black uppercase text-foreground leading-none">{user.name}</span>
-              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest leading-tight">{user.role}</span>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-sm ring-2 ring-background">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-          </div>
-          <ThemeToggle />
-          <Button onClick={loadData} variant="outline" size="sm" className="h-8 w-8 p-0">
-            <RefreshCw className="w-4 h-4" />
-          </Button>
         </div>
       </header>
 
