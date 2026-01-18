@@ -722,29 +722,17 @@ export default function ChamadosPage() {
                                 <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center font-bold text-[10px]">!</span>
                                 Reprogramado {ticket.reprogrammingHistory.length}x
 
-                                {/* Tooltip com histórico */}
-                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-64 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
-                                  <div className="text-xs font-bold mb-2 text-gray-900 dark:text-gray-100">Histórico de Reprogramações:</div>
-                                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {/* Tooltip com histórico - apenas datas */}
+                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-48 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
+                                  <div className="text-xs font-bold mb-2 text-gray-900 dark:text-gray-100">Datas de Reprogramação:</div>
+                                  <div className="space-y-1 max-h-60 overflow-y-auto">
                                     {ticket.reprogrammingHistory.map((entry: any, index: number) => {
                                       const isObject = typeof entry === 'object' && entry.date;
                                       const date = isObject ? entry.date : entry;
-                                      const reason = isObject ? entry.reason : '';
-
-                                      // Debug no console com detalhes completos
-                                      console.log(`🔍 DEBUG Entry [${index}]:`);
-                                      console.log(`   - Type: ${typeof entry}`);
-                                      console.log(`   - Keys: ${entry && typeof entry === 'object' ? Object.keys(entry).join(', ') : 'N/A'}`);
-                                      console.log(`   - Full JSON: ${JSON.stringify(entry)}`);
-                                      console.log(`   - isObject: ${isObject}`);
-                                      console.log(`   - date extracted: ${date}`);
-                                      console.log(`   - reason extracted: ${reason}`);
-                                      console.log(`   - formatted: ${formatDate(date)}`);
 
                                       return (
-                                        <div key={index} className="text-amber-700 dark:text-amber-300 pb-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
-                                          <div className="font-semibold">{formatDate(date)}</div>
-                                          {reason && <div className="text-[10px] mt-1 text-gray-600 dark:text-gray-400">{reason}</div>}
+                                        <div key={index} className="text-amber-700 dark:text-amber-300 text-sm font-semibold">
+                                          {formatDate(date)}
                                         </div>
                                       );
                                     })}
