@@ -423,10 +423,10 @@ export default function ChamadosPage() {
               })}
             </div>
 
-            {/* Charts - Lado a lado */}
-            <div className="grid grid-cols-2 gap-6">
+            {/* Charts - Lado a lado no desktop, empilhados no mobile */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Pie Chart - Status */}
-              <div className="h-[420px] w-full">
+              <div className="h-[350px] md:h-[420px] w-full">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -455,7 +455,7 @@ export default function ChamadosPage() {
               </div>
 
               {/* Bar Chart - Responsáveis */}
-              <div className="h-[420px] w-full">
+              <div className="h-[350px] md:h-[420px] w-full">
                 {responsibleChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={responsibleChartData}>
