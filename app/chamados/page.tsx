@@ -424,18 +424,18 @@ export default function ChamadosPage() {
             </div>
 
             {/* Charts - Lado a lado */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               {/* Pie Chart - Status */}
-              <div className="h-[280px] w-full">
+              <div className="h-[380px] w-full">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={chartData}
                         cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={70}
+                        cy="45%"
+                        innerRadius={70}
+                        outerRadius={100}
                         paddingAngle={5}
                         dataKey="value"
                       >
@@ -444,7 +444,7 @@ export default function ChamadosPage() {
                         ))}
                       </Pie>
                       <RechartsTooltip />
-                      <Legend verticalAlign="bottom" height={36} iconSize={8} />
+                      <Legend verticalAlign="bottom" height={50} iconSize={10} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -455,21 +455,21 @@ export default function ChamadosPage() {
               </div>
 
               {/* Bar Chart - Responsáveis */}
-              <div className="h-[280px] w-full">
+              <div className="h-[380px] w-full">
                 {responsibleChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={responsibleChartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
                       <XAxis
                         dataKey="name"
-                        tick={{ fontSize: 11 }}
-                        angle={-20}
+                        tick={{ fontSize: 12 }}
+                        angle={-15}
                         textAnchor="end"
-                        height={70}
+                        height={80}
                       />
-                      <YAxis tick={{ fontSize: 11 }} width={40} />
+                      <YAxis tick={{ fontSize: 12 }} width={50} />
                       <RechartsTooltip />
-                      <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={60}>
                         {responsibleChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
