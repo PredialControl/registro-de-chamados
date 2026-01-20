@@ -1,0 +1,61 @@
+const XLSX = require('xlsx');
+const path = require('path');
+
+// Ler o arquivo Excel
+const workbook = XLSX.readFile(path.join(__dirname, 'para ler', 'Chamados  Living Dream Panamby 1.xlsx'));
+const sheetName = workbook.SheetNames[0];
+const worksheet = workbook.Sheets[sheetName];
+const data = XLSX.utils.sheet_to_json(worksheet);
+
+console.log('\n📊 ANÁLISE DO DREAM PANAMBY\n');
+console.log('Total de linhas:', data.length);
+console.log('\n='.repeat(80));
+
+// Contar por status
+const statusCount = {};
+let semStatus = 0;
+let semDescricao = 0;
+
+data.forEach((row, index) => {
+  const situacao = row['Situação'] || row.Situação || row.Situacao || row.Status || '';
+  const descricao = row['Pendência:'] || row.Descrição || row.Descricao || '';
+
+  if (!descricao || descricao.trim() === '') {
+    semDescricao++;
+    return;
+  }
+
+  if (!situacao || situacao.trim() === '') {
+    semStatus++;
+  } else {
+    const normalized = situacao.toLowerCase().trim();
+    statusCount[normalized] = (statusCount[normalized] || 0) + 1;
+  }
+});
+
+console.log('\n📋 CONTAGEM POR STATUS (na planilha Excel):');
+console.log('='.repeat(80));
+Object.entries(statusCount).forEach(([status, count]) => {
+  console.log(`   ${status}: ${count}`);
+});
+
+if (semStatus > 0) {
+  console.log(`   (sem status/vazio): ${semStatus}`);
+}
+
+console.log('\n='.repeat(80));
+console.log(`Total válido (com descrição): ${data.length - semDescricao}`);
+console.log(`Sem descrição (pulados): ${semDescricao}`);
+
+// Verificar mapeamento
+console.log('\n📌 MAPEAMENTO DE STATUS:');
+console.log('='.repeat(80));
+console.log('   "itens apontados" -> itens_apontados');
+console.log('   "em andamento" -> em_andamento');
+console.log('   "improcedente" -> improcedente');
+console.log('   "aguardando vistoria" -> aguardando_vistoria');
+console.log('   "concluído" / "concluido" -> concluido');
+console.log('   "f. indevido" / "f indevido" -> f_indevido');
+console.log('   (outros/vazio) -> aguardando_vistoria (padrão)');
+
+console.log('\n');

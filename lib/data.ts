@@ -423,6 +423,8 @@ export const dataService = {
 
     // Buscar tickets por prédio específico (para admin)
     getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false): Promise<Ticket[]> => {
+        console.log(`🔍 Buscando tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}`);
+
         let query = supabase
             .from('tickets')
             .select('*')
@@ -440,6 +442,7 @@ export const dataService = {
             return [];
         }
 
+        console.log(`✅ Retornados ${data?.length || 0} tickets do prédio ${buildingId}`);
         return (data || []).map(mapTicket);
     },
 

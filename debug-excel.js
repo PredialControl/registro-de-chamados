@@ -2,7 +2,7 @@ const XLSX = require('xlsx');
 const path = require('path');
 
 // Ler o arquivo Excel
-const workbook = XLSX.readFile(path.join(__dirname, 'para ler', 'Pasta 7 (2).xlsx'));
+const workbook = XLSX.readFile(path.join(__dirname, 'para ler', 'Chamados  Living Dream Panamby 1.xlsx'));
 const sheetName = workbook.SheetNames[0];
 const worksheet = workbook.Sheets[sheetName];
 const data = XLSX.utils.sheet_to_json(worksheet);
