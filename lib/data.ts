@@ -252,10 +252,11 @@ export const dataService = {
         // Se limit não for especificado, buscar apenas os últimos 50 tickets (otimização de performance)
         const defaultLimit = limit ?? 50;
 
+        // Ordenar por ID ao invés de created_at para evitar timeout (muito mais rápido)
         const { data, error } = await supabase
             .from('tickets')
             .select('*')
-            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
             .limit(defaultLimit);
 
         if (error) {
@@ -404,11 +405,12 @@ export const dataService = {
         // Buscar tickets dos prédios que o usuário tem acesso (limitado para performance)
         const defaultLimit = limit ?? 50;
 
+        // Ordenar por ID ao invés de created_at para evitar timeout
         const { data, error } = await supabase
             .from('tickets')
             .select('*')
             .in('building_id', user.allowedBuildings)
-            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
             .limit(defaultLimit);
 
         if (error) {
