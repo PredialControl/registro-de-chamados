@@ -70,8 +70,9 @@ export default function AdminPage() {
     setIsLoadingData(true);
     try {
       // Buscar todos os dados em paralelo ao invés de sequencial
+      // Para admin, buscar TODOS os chamados (sem limit) para mostrar pendentes corretamente
       const [ticketsData, buildingsData, usersData] = await Promise.all([
-        dataService.getTickets(),
+        dataService.getTickets(9999), // Buscar até 9999 chamados para admin
         dataService.getBuildings(),
         dataService.getUsers()
       ]);
