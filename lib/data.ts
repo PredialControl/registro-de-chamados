@@ -402,35 +402,31 @@ export const dataService = {
     getTicketsForUser: async (user: User, limit?: number): Promise<Ticket[]> => {
         if (user.role === 'admin') return dataService.getTickets(limit);
 
-        // Buscar tickets dos prédios que o usuário tem acesso (limitado para performance)
-        const defaultLimit = limit ?? 50;
-
-        // Ordenar por ID ao invés de created_at para evitar timeout
+        // Usuários comuns veem TODOS os chamados dos prédios deles (sem limit)
         const { data, error } = await supabase
             .from('tickets')
             .select('*')
             .in('building_id', user.allowedBuildings)
-            .order('id', { ascending: false })
-            .limit(defaultLimit);
+            .order('id', { ascending: false });
 
         if (error) {
             console.error('Error fetching user tickets:', error);
             return [];
         }
 
+        console.log(`✅ Usuário ${user.name}: ${data?.length || 0} chamados carregados`);
         return (data || []).map(mapTicket);
     },
 
     // Buscar tickets por prédio específico (para admin)
-    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false, limit: number = 500): Promise<Ticket[]> => {
-        console.log(`🔍 Buscando tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}, Limit: ${limit}`);
+    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false): Promise<Ticket[]> => {
+        console.log(`🔍 Buscando tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}`);
 
         let query = supabase
             .from('tickets')
             .select('*')
             .eq('building_id', buildingId)
-            .order('id', { ascending: false })
-            .limit(limit);
+            .order('id', { ascending: false });
 
         if (onlyPending) {
             query = query.or('is_registered.is.null,is_registered.eq.false');
