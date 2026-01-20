@@ -421,6 +421,28 @@ export const dataService = {
         return (data || []).map(mapTicket);
     },
 
+    // Buscar tickets por prédio específico (para admin)
+    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false): Promise<Ticket[]> => {
+        let query = supabase
+            .from('tickets')
+            .select('*')
+            .eq('building_id', buildingId)
+            .order('id', { ascending: false });
+
+        if (onlyPending) {
+            query = query.or('is_registered.is.null,is_registered.eq.false');
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Error fetching building tickets:', error);
+            return [];
+        }
+
+        return (data || []).map(mapTicket);
+    },
+
     // --- USER MANAGEMENT (Admin only) ---
     createUser: async (userData: Omit<User, 'id'>): Promise<User | null> => {
         const { data, error } = await supabase

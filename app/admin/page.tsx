@@ -64,22 +64,32 @@ export default function AdminPage() {
     if (user?.role === 'admin') {
       loadData();
     }
-  }, [user]);
+  }, [user, selectedBuildingId, registrationFilter]);
 
   const loadData = async () => {
     setIsLoadingData(true);
     try {
-      // Buscar todos os dados em paralelo ao invés de sequencial
-      // Para admin, buscar TODOS os chamados (sem limit) para mostrar pendentes corretamente
-      const [ticketsData, buildingsData, usersData] = await Promise.all([
-        dataService.getTickets(9999), // Buscar até 9999 chamados para admin
+      // Buscar prédios e usuários
+      const [buildingsData, usersData] = await Promise.all([
         dataService.getBuildings(),
         dataService.getUsers()
       ]);
 
-      setTickets(ticketsData);
       setBuildings(buildingsData);
       setUsers(usersData);
+
+      // Se tem prédio selecionado, buscar tickets desse prédio
+      if (selectedBuildingId) {
+        const ticketsData = await dataService.getTicketsByBuilding(
+          selectedBuildingId,
+          registrationFilter === 'pending'
+        );
+        setTickets(ticketsData);
+      } else {
+        // Na tela inicial, buscar apenas contagem de pendentes por prédio (otimizado)
+        const ticketsData = await dataService.getTickets(1000);
+        setTickets(ticketsData);
+      }
     } finally {
       setIsLoadingData(false);
     }
