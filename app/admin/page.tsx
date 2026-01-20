@@ -24,6 +24,7 @@ export default function AdminPage() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState('chamados');
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Navigation & Filter States
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
@@ -66,9 +67,21 @@ export default function AdminPage() {
   }, [user]);
 
   const loadData = async () => {
-    setTickets(await dataService.getTickets());
-    setBuildings(await dataService.getBuildings());
-    setUsers(await dataService.getUsers());
+    setIsLoadingData(true);
+    try {
+      // Buscar todos os dados em paralelo ao invés de sequencial
+      const [ticketsData, buildingsData, usersData] = await Promise.all([
+        dataService.getTickets(),
+        dataService.getBuildings(),
+        dataService.getUsers()
+      ]);
+
+      setTickets(ticketsData);
+      setBuildings(buildingsData);
+      setUsers(usersData);
+    } finally {
+      setIsLoadingData(false);
+    }
   };
 
   const handleUpdateTicketStatus = async (ticketId: string, status: Ticket['status']) => {
@@ -275,6 +288,12 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold text-foreground">Painel Admin</h1>
           <p className="text-muted-foreground text-sm">Gerencie o sistema e os chamados</p>
         </div>
+        {isLoadingData && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Carregando...</span>
+          </div>
+        )}
       </header>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

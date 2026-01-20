@@ -225,35 +225,22 @@ export const dataService = {
     },
 
     // --- TICKETS ---
-    getTickets: async (): Promise<Ticket[]> => {
-        // Buscar TODOS os tickets com paginação para evitar limite de 1000
-        let allTickets: any[] = [];
-        let page = 0;
-        const pageSize = 1000;
-        let hasMore = true;
+    getTickets: async (limit?: number): Promise<Ticket[]> => {
+        // Se limit não for especificado, buscar apenas os últimos 50 tickets (otimização de performance)
+        const defaultLimit = limit ?? 50;
 
-        while (hasMore) {
-            const { data, error } = await supabase
-                .from('tickets')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .range(page * pageSize, (page + 1) * pageSize - 1);
+        const { data, error } = await supabase
+            .from('tickets')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(defaultLimit);
 
-            if (error) {
-                console.error('Error fetching tickets:', error);
-                break;
-            }
-
-            if (data && data.length > 0) {
-                allTickets = [...allTickets, ...data];
-                hasMore = data.length === pageSize;
-                page++;
-            } else {
-                hasMore = false;
-            }
+        if (error) {
+            console.error('Error fetching tickets:', error);
+            return [];
         }
 
-        return allTickets.map(mapTicket);
+        return (data || []).map(mapTicket);
     },
 
     createTicket: async (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'status'>): Promise<{ ticket: Ticket | null; wasOffline: boolean }> => {
@@ -388,38 +375,25 @@ export const dataService = {
         }
     },
 
-    getTicketsForUser: async (user: User): Promise<Ticket[]> => {
-        if (user.role === 'admin') return dataService.getTickets();
+    getTicketsForUser: async (user: User, limit?: number): Promise<Ticket[]> => {
+        if (user.role === 'admin') return dataService.getTickets(limit);
 
-        // Buscar TODOS os tickets dos prédios que o usuário tem acesso
-        let allTickets: any[] = [];
-        let page = 0;
-        const pageSize = 1000;
-        let hasMore = true;
+        // Buscar tickets dos prédios que o usuário tem acesso (limitado para performance)
+        const defaultLimit = limit ?? 50;
 
-        while (hasMore) {
-            const { data, error } = await supabase
-                .from('tickets')
-                .select('*')
-                .in('building_id', user.allowedBuildings)
-                .order('created_at', { ascending: false })
-                .range(page * pageSize, (page + 1) * pageSize - 1);
+        const { data, error } = await supabase
+            .from('tickets')
+            .select('*')
+            .in('building_id', user.allowedBuildings)
+            .order('created_at', { ascending: false })
+            .limit(defaultLimit);
 
-            if (error) {
-                console.error('Error fetching user tickets:', error);
-                break;
-            }
-
-            if (data && data.length > 0) {
-                allTickets = [...allTickets, ...data];
-                hasMore = data.length === pageSize;
-                page++;
-            } else {
-                hasMore = false;
-            }
+        if (error) {
+            console.error('Error fetching user tickets:', error);
+            return [];
         }
 
-        return allTickets.map(mapTicket);
+        return (data || []).map(mapTicket);
     },
 
     // --- USER MANAGEMENT (Admin only) ---
