@@ -43,6 +43,29 @@ const STORAGE_KEYS = {
 let queueLock: Promise<void> = Promise.resolve();
 
 export const dataService = {
+    // --- AUTHENTICATION ---
+    signIn: async (email: string, password: string) => {
+        return await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+    },
+
+    signOut: async () => {
+        return await supabase.auth.signOut();
+    },
+
+    getSession: async () => {
+        return await supabase.auth.getSession();
+    },
+
+    signUp: async (email: string, password: string) => {
+        return await supabase.auth.signUp({
+            email,
+            password
+        });
+    },
+
     // --- OFFLINE SYNC ---
     getSyncQueue: (): any[] => {
         if (typeof window === 'undefined') return [];

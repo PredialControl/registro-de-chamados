@@ -10,7 +10,7 @@ interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     login: (email: string, password: string) => Promise<boolean>;
-    logout: () => void;
+    logout: () => Promise<void>;
     isAuthenticated: boolean;
     refreshUser: () => void;
 }
@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 await dataService.syncPendingTickets();
             }
 
+            // Verificar sessão armazenada localmente
             const storedUser = storage.get<User | null>(STORAGE_KEYS.SESSION, null);
             if (storedUser) {
                 const latestUser = await dataService.getUserByEmail(storedUser.email);
@@ -85,22 +86,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
-    const login = async (email: string, _password: string): Promise<boolean> => {
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
+    const login = async (email: string, password: string): Promise<boolean> => {
+        try {
+            // Validar senha padrão
+            if (password !== '123456') {
+                console.error('Senha incorreta');
+                return false;
+            }
 
-        const foundUser = await dataService.getUserByEmail(email);
+            // Buscar usuário pelo email
+            const foundUser = await dataService.getUserByEmail(email);
 
-        if (foundUser) {
-            setUser(foundUser);
-            storage.set(STORAGE_KEYS.SESSION, foundUser);
-            return true;
+            if (foundUser) {
+                setUser(foundUser);
+                storage.set(STORAGE_KEYS.SESSION, foundUser);
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Erro no login:', error);
+            return false;
         }
-
-        return false;
     };
 
-    const logout = () => {
+    const logout = async () => {
         setUser(null);
         storage.remove(STORAGE_KEYS.SESSION);
     };
