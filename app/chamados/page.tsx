@@ -331,7 +331,10 @@ export default function ChamadosPage() {
 
   // Reset para página 1 quando filtros mudarem
   useEffect(() => {
-    setCurrentPage(1);
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [selectedStatus, selectedBuilding, selectedDate, selectedMonth, searchTicketNumber, searchKeyword]);
 
   const ticketsByStatus = {
