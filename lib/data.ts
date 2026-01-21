@@ -401,35 +401,67 @@ export const dataService = {
 
     getTicketsForUser: async (user: User, limit?: number): Promise<Ticket[]> => {
         if (user.role === 'admin') {
-            // Admin vê TODOS os tickets sem limite
+            // Admin vê TODOS os tickets - buscar em lotes para evitar limite de 1000
+            let allTickets: any[] = [];
+            let from = 0;
+            const batchSize = 1000;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await supabase
+                    .from('tickets')
+                    .select('*')
+                    .order('id', { ascending: false })
+                    .range(from, from + batchSize - 1);
+
+                if (error) {
+                    console.error('Error fetching admin tickets:', error);
+                    break;
+                }
+
+                if (data && data.length > 0) {
+                    allTickets = [...allTickets, ...data];
+                    from += batchSize;
+                    hasMore = data.length === batchSize;
+                } else {
+                    hasMore = false;
+                }
+            }
+
+            console.log(`✅ Admin ${user.name}: ${allTickets.length} chamados carregados`);
+            return allTickets.map(mapTicket);
+        }
+
+        // Usuários comuns veem TODOS os chamados dos prédios deles - buscar em lotes
+        let allTickets: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
             const { data, error } = await supabase
                 .from('tickets')
                 .select('*')
-                .order('id', { ascending: false });
+                .in('building_id', user.allowedBuildings)
+                .order('id', { ascending: false })
+                .range(from, from + batchSize - 1);
 
             if (error) {
-                console.error('Error fetching admin tickets:', error);
-                return [];
+                console.error('Error fetching user tickets:', error);
+                break;
             }
 
-            console.log(`✅ Admin ${user.name}: ${data?.length || 0} chamados carregados`);
-            return (data || []).map(mapTicket);
+            if (data && data.length > 0) {
+                allTickets = [...allTickets, ...data];
+                from += batchSize;
+                hasMore = data.length === batchSize;
+            } else {
+                hasMore = false;
+            }
         }
 
-        // Usuários comuns veem TODOS os chamados dos prédios deles (sem limit)
-        const { data, error } = await supabase
-            .from('tickets')
-            .select('*')
-            .in('building_id', user.allowedBuildings)
-            .order('id', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching user tickets:', error);
-            return [];
-        }
-
-        console.log(`✅ Usuário ${user.name}: ${data?.length || 0} chamados carregados`);
-        return (data || []).map(mapTicket);
+        console.log(`✅ Usuário ${user.name}: ${allTickets.length} chamados carregados`);
+        return allTickets.map(mapTicket);
     },
 
     // Buscar contagem de pendentes por prédio (otimizado para painel admin)
