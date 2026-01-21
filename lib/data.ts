@@ -418,6 +418,36 @@ export const dataService = {
         return (data || []).map(mapTicket);
     },
 
+    // Buscar contagem de pendentes por prédio (otimizado para painel admin)
+    getPendingCountsByBuilding: async (): Promise<{ buildingId: string; count: number }[]> => {
+        console.log('🔍 Buscando contagem de pendentes por prédio...');
+
+        const { data, error } = await supabase
+            .from('tickets')
+            .select('building_id')
+            .or('is_registered.is.null,is_registered.eq.false');
+
+        if (error) {
+            console.error('Error fetching pending counts:', error);
+            return [];
+        }
+
+        // Agrupar por building_id e contar
+        const counts: { [key: string]: number } = {};
+        (data || []).forEach(ticket => {
+            const buildingId = ticket.building_id;
+            counts[buildingId] = (counts[buildingId] || 0) + 1;
+        });
+
+        const result = Object.entries(counts).map(([buildingId, count]) => ({
+            buildingId,
+            count
+        }));
+
+        console.log(`✅ Contagem retornada para ${result.length} prédios:`, result);
+        return result;
+    },
+
     // Buscar tickets por prédio específico (para admin)
     getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false): Promise<Ticket[]> => {
         console.log(`🔍 Buscando tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}`);

@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [externalIdInput, setExternalIdInput] = useState('');
   const [editingTicketNumberId, setEditingTicketNumberId] = useState<string | null>(null);
   const [editingTicketNumberValue, setEditingTicketNumberValue] = useState('');
+  const [pendingCounts, setPendingCounts] = useState<Map<string, number>>(new Map());
 
   // Form states
   const [showBuildingForm, setShowBuildingForm] = useState(false);
@@ -66,6 +67,13 @@ export default function AdminPage() {
     }
   }, [user, selectedBuildingId, registrationFilter]);
 
+  // Limpar contagem de pendentes quando selecionar/desselecionar prédio
+  useEffect(() => {
+    if (selectedBuildingId) {
+      setPendingCounts(new Map());
+    }
+  }, [selectedBuildingId]);
+
   const loadData = async () => {
     setIsLoadingData(true);
     try {
@@ -86,9 +94,21 @@ export default function AdminPage() {
         );
         setTickets(ticketsData);
       } else {
-        // Na tela inicial, buscar apenas contagem de pendentes por prédio (otimizado)
+        // Na tela inicial, buscar contagem otimizada de pendentes por prédio
+        const pendingCounts = await dataService.getPendingCountsByBuilding();
+        
+        // Criar um mapa de contagem para acesso rápido
+        const pendingMap = new Map<string, number>();
+        pendingCounts.forEach(({ buildingId, count }) => {
+          pendingMap.set(buildingId, count);
+        });
+
+        // Buscar tickets totais (apenas para display do total geral)
         const ticketsData = await dataService.getTickets(1000);
         setTickets(ticketsData);
+        
+        // Armazenar contagem de pendentes para uso na renderização
+        setPendingCounts(pendingMap);
       }
     } finally {
       setIsLoadingData(false);
@@ -320,7 +340,9 @@ export default function AdminPage() {
           {!selectedBuildingId ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {buildings.map(b => {
-                const pendingCount = tickets.filter(t => t.buildingId === b.id && !t.isRegistered).length;
+                // Usar contagem otimizada quando disponível, senão calcular local
+                const pendingCount = pendingCounts.get(b.id) ?? 
+                  tickets.filter(t => t.buildingId === b.id && !t.isRegistered).length;
                 return (
                   <Card
                     key={b.id}
