@@ -122,7 +122,12 @@ export default function TicketPage() {
   };
 
   if (isLoading || !user) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin" /></div>;
+    return (
+      <div className="flex flex-col justify-center items-center h-screen gap-4">
+        <Loader2 className="animate-spin w-12 h-12 text-blue-600" />
+        <p className="text-lg font-semibold text-muted-foreground">Carregando...</p>
+      </div>
+    );
   }
 
   return (
