@@ -400,7 +400,7 @@ export const dataService = {
     },
 
     getTicketsForUser: async (user: User, limit?: number): Promise<Ticket[]> => {
-        if (user.role === 'admin') return dataService.getTickets(limit);
+        if (user.role === 'admin') return dataService.getTickets(limit || 10000);
 
         // Usuários comuns veem TODOS os chamados dos prédios deles (sem limit)
         const { data, error } = await supabase
