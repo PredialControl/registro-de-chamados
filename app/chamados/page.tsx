@@ -49,12 +49,9 @@ export default function ChamadosPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<TicketStatus>('todos');
   const [selectedBuilding, setSelectedBuilding] = useState<string>('todos');
-  const [editingTicketId, setEditingTicketId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Ticket>>({});
   const [selectedTicketForGallery, setSelectedTicketForGallery] = useState<Ticket | null>(null);
   const [editingTicketNumberId, setEditingTicketNumberId] = useState<string | null>(null);
   const [editingTicketNumberValue, setEditingTicketNumberValue] = useState('');
-  const [reprogrammingReason, setReprogrammingReason] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>('todos');
   const [selectedMonth, setSelectedMonth] = useState<string>('todos');
   const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
@@ -64,7 +61,7 @@ export default function ChamadosPage() {
   const [itemsPerPage, setItemsPerPage] = useState<number>(50);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
 
-  // Batch Edit Mode - SEMPRE ATIVO para edição rápida
+  // Edição em lote - SEMPRE ATIVO para edição rápida tipo planilha
   const [batchEdits, setBatchEdits] = useState<Map<string, Partial<Ticket>>>(new Map());
   const [isSavingBatch, setIsSavingBatch] = useState<boolean>(false);
 
@@ -216,36 +213,9 @@ export default function ChamadosPage() {
     toast.success('Iniciando download de todas as fotos...');
   };
 
-  const startEdit = (ticket: Ticket) => {
-    // Sempre adiciona ao mapa de edições (edição rápida como planilha)
-    const existingEdit = batchEdits.get(ticket.id);
-    if (!existingEdit) {
-      const newEdits = new Map(batchEdits);
-      newEdits.set(ticket.id, {
-        buildingId: ticket.buildingId,
-        location: ticket.location,
-        description: ticket.description,
-        status: ticket.status,
-        deadline: ticket.deadline,
-        reprogrammingDate: ticket.reprogrammingDate,
-        constructorReturn: ticket.constructorReturn,
-        responsible: ticket.responsible,
-      });
-      setBatchEdits(newEdits);
-    }
-    setEditingTicketId(ticket.id);
-  };
-
-  const cancelEdit = () => {
-    // Remove apenas a visualização de edição, mantém as mudanças salvas
-    setEditingTicketId(null);
-    setReprogrammingReason('');
-  };
-
   const cancelAllBatchEdits = () => {
     if (confirm('Descartar TODAS as alterações não salvas?')) {
       setBatchEdits(new Map());
-      setEditingTicketId(null);
     }
   };
 
@@ -278,7 +248,6 @@ export default function ChamadosPage() {
 
       // Limpar edições
       setBatchEdits(new Map());
-      setEditingTicketId(null);
 
       if (errorCount === 0) {
         toast.success(`✅ ${successCount} chamado(s) salvos!`);
@@ -293,11 +262,6 @@ export default function ChamadosPage() {
     }
   };
 
-  const saveEdit = async () => {
-    // NÃO USA MAIS - agora só salva com o botão "Salvar Tudo"
-    // Mantido apenas para compatibilidade
-    return;
-  };
 
   const deleteTicket = async (ticketId: string) => {
     if (confirm('Tem certeza que deseja excluir este chamado?')) {
@@ -890,7 +854,6 @@ export default function ChamadosPage() {
               <tbody className="divide-y divide-border">
                 {paginatedTickets.map(ticket => {
                   const building = buildings.find(b => b.id === ticket.buildingId);
-                  const isEditing = editingTicketId === ticket.id;
                   const hasUnsavedChanges = batchEdits.has(ticket.id);
                   const statusConfig = STATUS_CONFIG[ticket.status];
 
@@ -898,14 +861,12 @@ export default function ChamadosPage() {
                     <tr
                       key={ticket.id}
                       className={cn(
-                        "hover:bg-muted/30 transition-colors border-b border-border bg-background cursor-pointer",
-                        isEditing && "bg-blue-50 dark:bg-blue-900/30",
+                        "hover:bg-muted/30 transition-colors border-b border-border bg-background",
                         hasUnsavedChanges && "border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/20"
                       )}
                       onClick={() => {
-                        if (isAdmin && !isEditing && !editingTicketNumberId) {
-                          startEdit(ticket);
-                        } else if (!isAdmin) {
+                        // Apenas para não-admin visualizar
+                        if (!isAdmin) {
                           setViewingTicket(ticket);
                         }
                       }}
@@ -970,54 +931,41 @@ export default function ChamadosPage() {
                         )}
                       </td>
 
-                      <td className="px-3 py-4 border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
-                        {isAdmin && isEditing ? (
-                          <Input
-                            value={batchEdits.get(ticket.id)?.location || ticket.location}
-                            onChange={(e) => {
-                              const currentEdit = batchEdits.get(ticket.id) || {};
-                              const newEdits = new Map(batchEdits);
-                              newEdits.set(ticket.id, { ...currentEdit, location: e.target.value });
-                              setBatchEdits(newEdits);
-                            }}
-                            className="h-8 text-xs bg-background"
-                          />
-                        ) : (
-                          <div className="text-foreground text-xs truncate max-w-[120px]" title={ticket.location}>{ticket.location}</div>
-                        )}
+                      <td className="px-3 py-4 border-x border-border/50">
+                        <div className="text-foreground text-xs truncate max-w-[120px]" title={ticket.location}>{ticket.location}</div>
                       </td>
 
-                      <td className="px-3 py-4 border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
-                        {isAdmin && isEditing ? (
-                          <Textarea
-                            value={batchEdits.get(ticket.id)?.description || ticket.description}
-                            onChange={(e) => {
-                              const currentEdit = batchEdits.get(ticket.id) || {};
-                              const newEdits = new Map(batchEdits);
-                              newEdits.set(ticket.id, { ...currentEdit, description: e.target.value });
-                              setBatchEdits(newEdits);
-                            }}
-                            className="min-h-[60px] text-xs bg-background"
-                          />
-                        ) : (
-                          <div className="text-muted-foreground text-xs line-clamp-2 cursor-help" title={ticket.description}>
-                            {ticket.description}
-                          </div>
-                        )}
+                      <td className="px-3 py-4 border-x border-border/50">
+                        <div className="text-muted-foreground text-xs line-clamp-2 cursor-help" title={ticket.description}>
+                          {ticket.description}
+                        </div>
                       </td>
 
-                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
-                        {isAdmin && isEditing ? (
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
                           <Select
                             value={batchEdits.get(ticket.id)?.status || ticket.status}
                             onValueChange={(value) => {
-                              const currentEdit = batchEdits.get(ticket.id) || {};
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                responsible: ticket.responsible,
+                              };
                               const newEdits = new Map(batchEdits);
                               newEdits.set(ticket.id, { ...currentEdit, status: value as Ticket['status'] });
                               setBatchEdits(newEdits);
                             }}
                           >
-                            <SelectTrigger className="h-8 text-xs bg-background">
+                            <SelectTrigger className={cn(
+                              "h-8 text-xs border-none shadow-none",
+                              statusConfig.color,
+                              "hover:brightness-95 transition-all"
+                            )}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1172,13 +1120,27 @@ export default function ChamadosPage() {
                         )}
                       </td>
 
-                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
-                        {isAdmin && isEditing ? (
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
                           <Select
-                            value={editForm.responsible || 'none'}
-                            onValueChange={(value) => setEditForm({ ...editForm, responsible: value === 'none' ? undefined : value as 'Condomínio' | 'Construtora' })}
+                            value={batchEdits.get(ticket.id)?.responsible || ticket.responsible || 'none'}
+                            onValueChange={(value) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, responsible: value === 'none' ? undefined : value as 'Condomínio' | 'Construtora' });
+                              setBatchEdits(newEdits);
+                            }}
                           >
-                            <SelectTrigger className="h-8 text-xs bg-background">
+                            <SelectTrigger className="h-8 text-xs border border-border/50 hover:border-blue-400 transition-colors">
                               <SelectValue placeholder="Selecione..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -1220,30 +1182,18 @@ export default function ChamadosPage() {
 
                       {isAdmin && (
                         <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
-                          {isEditing ? (
-                            <div className="flex gap-1 justify-center">
-                              <button
-                                onClick={cancelEdit}
-                                className="p-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors dark:bg-muted dark:text-foreground"
-                                title="Fechar edição"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex justify-center">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteTicket(ticket.id);
-                                }}
-                                className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                title="Excluir"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex justify-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteTicket(ticket.id);
+                              }}
+                              className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
