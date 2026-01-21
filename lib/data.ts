@@ -400,7 +400,21 @@ export const dataService = {
     },
 
     getTicketsForUser: async (user: User, limit?: number): Promise<Ticket[]> => {
-        if (user.role === 'admin') return dataService.getTickets(limit || 10000);
+        if (user.role === 'admin') {
+            // Admin vê TODOS os tickets sem limite
+            const { data, error } = await supabase
+                .from('tickets')
+                .select('*')
+                .order('id', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching admin tickets:', error);
+                return [];
+            }
+
+            console.log(`✅ Admin ${user.name}: ${data?.length || 0} chamados carregados`);
+            return (data || []).map(mapTicket);
+        }
 
         // Usuários comuns veem TODOS os chamados dos prédios deles (sem limit)
         const { data, error } = await supabase

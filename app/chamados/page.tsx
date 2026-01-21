@@ -59,6 +59,8 @@ export default function ChamadosPage() {
   const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -298,6 +300,17 @@ export default function ChamadosPage() {
 
     return statusMatch && buildingMatch && dateMatch && monthMatch && numberMatch && keywordMatch;
   });
+
+  // Paginação
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTickets = filteredTickets.slice(startIndex, endIndex);
+
+  // Reset para página 1 quando filtros mudarem
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedStatus, selectedBuilding, selectedDate, selectedMonth, searchTicketNumber, searchKeyword]);
 
   const ticketsByStatus = {
     todos: filteredTickets.length,
@@ -591,6 +604,92 @@ export default function ChamadosPage() {
         />
       </div>
 
+      {/* Paginação e Controles */}
+      {filteredTickets.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border border-border">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{filteredTickets.length}</span>
+            {filteredTickets.length === 1 ? 'chamado encontrado' : 'chamados encontrados'}
+            <span className="hidden sm:inline">•</span>
+            <span className="hidden sm:inline">
+              Mostrando {startIndex + 1}-{Math.min(endIndex, filteredTickets.length)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Itens por página */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Por página:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(Number(value));
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="h-8 w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Navegação de páginas */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                  title="Primeira página"
+                >
+                  «
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 w-8 p-0"
+                  title="Página anterior"
+                >
+                  ‹
+                </Button>
+                <div className="flex items-center gap-1 px-2">
+                  <span className="text-sm font-medium">{currentPage}</span>
+                  <span className="text-xs text-muted-foreground">de</span>
+                  <span className="text-sm font-medium">{totalPages}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
+                  title="Próxima página"
+                >
+                  ›
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="h-8 w-8 p-0"
+                  title="Última página"
+                >
+                  »
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       {filteredTickets.length === 0 ? (
         <Card>
@@ -618,7 +717,7 @@ export default function ChamadosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredTickets.map(ticket => {
+                {paginatedTickets.map(ticket => {
                   const building = buildings.find(b => b.id === ticket.buildingId);
                   const isEditing = editingTicketId === ticket.id;
                   const statusConfig = STATUS_CONFIG[ticket.status];
