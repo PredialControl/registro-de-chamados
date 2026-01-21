@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { dataService } from '@/lib/data';
 import { Ticket, Building, User } from '@/lib/mockData';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon, Edit2 } from 'lucide-react';
+import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon, Edit2, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +63,10 @@ export default function ChamadosPage() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(50);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
+
+  // Batch Edit Mode - SEMPRE ATIVO para edição rápida
+  const [batchEdits, setBatchEdits] = useState<Map<string, Partial<Ticket>>>(new Map());
+  const [isSavingBatch, setIsSavingBatch] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -140,6 +145,68 @@ export default function ChamadosPage() {
     toast.success(`Foto ${index !== undefined ? index + 1 : ''} baixada com sucesso!`);
   };
 
+  const exportToExcel = () => {
+    try {
+      // Preparar dados para exportação
+      const exportData = filteredTickets.map(ticket => {
+        const building = buildings.find(b => b.id === ticket.buildingId);
+        const statusLabel = STATUS_CONFIG[ticket.status]?.label || ticket.status;
+
+        return {
+          'Nº Chamado': ticket.externalTicketId || 'SEM Nº',
+          'Prédio': building?.name || 'N/A',
+          'Local': ticket.location || '',
+          'Descrição': ticket.description || '',
+          'Situação': statusLabel,
+          'Abertura': ticket.createdAt ? formatDate(ticket.createdAt) : '--',
+          'Prazo': ticket.deadline ? formatDate(ticket.deadline) : '--',
+          'Reprogramação': ticket.reprogrammingDate ? formatDate(ticket.reprogrammingDate) : '--',
+          'Retorno Construtora': ticket.constructorReturn || '--',
+          'Responsável': ticket.responsible || '--',
+          'Qtd. Fotos': ticket.photoUrls?.length || 0,
+        };
+      });
+
+      // Criar workbook
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // Definir largura das colunas
+      const colWidths = [
+        { wch: 15 }, // Nº Chamado
+        { wch: 25 }, // Prédio
+        { wch: 20 }, // Local
+        { wch: 50 }, // Descrição
+        { wch: 18 }, // Situação
+        { wch: 12 }, // Abertura
+        { wch: 12 }, // Prazo
+        { wch: 15 }, // Reprogramação
+        { wch: 40 }, // Retorno
+        { wch: 15 }, // Responsável
+        { wch: 12 }, // Qtd Fotos
+      ];
+      ws['!cols'] = colWidths;
+
+      // Criar workbook e adicionar worksheet
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Chamados');
+
+      // Gerar nome do arquivo
+      const buildingName = selectedBuilding === 'todos'
+        ? 'Todos_Predios'
+        : buildings.find(b => b.id === selectedBuilding)?.name.replace(/\s/g, '_') || 'Chamados';
+      const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+      const fileName = `Chamados_${buildingName}_${date}.xlsx`;
+
+      // Fazer download
+      XLSX.writeFile(wb, fileName);
+
+      toast.success(`Planilha "${fileName}" baixada com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      toast.error('Erro ao gerar planilha');
+    }
+  };
+
   const downloadAllPhotos = (ticket: Ticket) => {
     ticket.photoUrls.forEach((url, index) => {
       setTimeout(() => {
@@ -150,99 +217,86 @@ export default function ChamadosPage() {
   };
 
   const startEdit = (ticket: Ticket) => {
+    // Sempre adiciona ao mapa de edições (edição rápida como planilha)
+    const existingEdit = batchEdits.get(ticket.id);
+    if (!existingEdit) {
+      const newEdits = new Map(batchEdits);
+      newEdits.set(ticket.id, {
+        buildingId: ticket.buildingId,
+        location: ticket.location,
+        description: ticket.description,
+        status: ticket.status,
+        deadline: ticket.deadline,
+        reprogrammingDate: ticket.reprogrammingDate,
+        constructorReturn: ticket.constructorReturn,
+        responsible: ticket.responsible,
+      });
+      setBatchEdits(newEdits);
+    }
     setEditingTicketId(ticket.id);
-    setEditForm({
-      buildingId: ticket.buildingId,
-      location: ticket.location,
-      description: ticket.description,
-      status: ticket.status,
-      deadline: ticket.deadline,
-      reprogrammingDate: ticket.reprogrammingDate,
-      constructorReturn: ticket.constructorReturn,
-      responsible: ticket.responsible,
-    });
   };
 
   const cancelEdit = () => {
+    // Remove apenas a visualização de edição, mantém as mudanças salvas
     setEditingTicketId(null);
-    setEditForm({});
     setReprogrammingReason('');
   };
 
-  const saveEdit = async () => {
-    if (!editingTicketId) return;
+  const cancelAllBatchEdits = () => {
+    if (confirm('Descartar TODAS as alterações não salvas?')) {
+      setBatchEdits(new Map());
+      setEditingTicketId(null);
+    }
+  };
 
-    const originalTicket = tickets.find(t => t.id === editingTicketId);
-    if (!originalTicket) return;
-
-    // Verificar se mudou a data de reprogramação
-    const hasReprogrammingChange = editForm.reprogrammingDate && editForm.reprogrammingDate !== originalTicket.reprogrammingDate;
-
-    // Se mudou a reprogramação, exigir motivo
-    if (hasReprogrammingChange && !reprogrammingReason.trim()) {
-      toast.error('Informe o motivo da reprogramação!');
+  const saveBatchEdits = async () => {
+    if (batchEdits.size === 0) {
+      toast.error('Nenhuma alteração para salvar');
       return;
     }
 
-    // Lógica de histórico de reprogramação
-    let updatedHistory = originalTicket.reprogrammingHistory || [];
-    let updatedConstructorReturn = editForm.constructorReturn || originalTicket.constructorReturn || '';
-
-    if (hasReprogrammingChange) {
-      const newEntry = {
-        date: editForm.reprogrammingDate!,
-        reason: reprogrammingReason.trim(),
-        updatedAt: new Date().toISOString()
-      };
-
-      console.log('💾 SALVANDO Nova Entrada de Reprogramação:', {
-        newEntry,
-        newEntryStringified: JSON.stringify(newEntry),
-        reprogrammingDate: editForm.reprogrammingDate,
-        reprogrammingReason: reprogrammingReason.trim(),
-        historyBefore: updatedHistory.length,
-        historyAfter: updatedHistory.length + 1
-      });
-
-      updatedHistory = [...updatedHistory, newEntry];
-
-      // Adicionar motivo da reprogramação ao campo Retorno com a data de hoje
-      const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const reprogrammingNote = `[${today}] Reprogramação: ${reprogrammingReason.trim()}`;
-
-      // Se já existe retorno, adiciona no final com quebra de linha
-      if (updatedConstructorReturn.trim()) {
-        updatedConstructorReturn = `${updatedConstructorReturn}\n\n${reprogrammingNote}`;
-      } else {
-        updatedConstructorReturn = reprogrammingNote;
-      }
-    }
-
-    const updateData = {
-      ...editForm,
-      reprogrammingHistory: updatedHistory,
-      constructorReturn: updatedConstructorReturn
-    };
-
-    console.log('📤 Enviando atualização para dataService:', {
-      ticketId: editingTicketId,
-      updateData,
-      historyLength: updatedHistory.length,
-      hasHistory: updatedHistory.length > 0
-    });
+    setIsSavingBatch(true);
+    let successCount = 0;
+    let errorCount = 0;
 
     try {
-      await dataService.updateTicket(editingTicketId, updateData);
+      // Salvar todas as alterações em paralelo (RÁPIDO!)
+      const savePromises = Array.from(batchEdits.entries()).map(async ([ticketId, editData]) => {
+        try {
+          await dataService.updateTicket(ticketId, editData);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error(`Erro ao salvar chamado ${ticketId}:`, error);
+        }
+      });
 
+      await Promise.all(savePromises);
+
+      // Recarregar dados
       await loadData();
+
+      // Limpar edições
+      setBatchEdits(new Map());
       setEditingTicketId(null);
-      setEditForm({});
-      setReprogrammingReason('');
-      toast.success('Chamado atualizado com sucesso!');
+
+      if (errorCount === 0) {
+        toast.success(`✅ ${successCount} chamado(s) salvos!`);
+      } else {
+        toast.warning(`${successCount} salvos, ${errorCount} com erro`);
+      }
     } catch (error) {
-      console.error('❌ Erro ao atualizar:', error);
-      toast.error('Erro ao atualizar chamado.');
+      console.error('Erro ao salvar edições:', error);
+      toast.error('Erro ao salvar alterações');
+    } finally {
+      setIsSavingBatch(false);
     }
+  };
+
+  const saveEdit = async () => {
+    // NÃO USA MAIS - agora só salva com o botão "Salvar Tudo"
+    // Mantido apenas para compatibilidade
+    return;
   };
 
   const deleteTicket = async (ticketId: string) => {
@@ -463,6 +517,16 @@ export default function ChamadosPage() {
               {user.name.charAt(0).toUpperCase()}
             </div>
             <ThemeToggle />
+            <Button
+              onClick={exportToExcel}
+              variant="outline"
+              size="sm"
+              className="h-8 gap-2 px-3 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 border-green-300 dark:border-green-700"
+              title="Exportar para Excel"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-green-600 dark:text-green-400" />
+              <span className="hidden md:inline text-green-700 dark:text-green-300 font-semibold text-xs">Excel</span>
+            </Button>
             <Button onClick={loadData} variant="outline" size="sm" className="h-8 w-8 p-0">
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -477,6 +541,45 @@ export default function ChamadosPage() {
               : buildings.find(b => b.id === selectedBuilding)?.name || 'N/A'}
           </h2>
         </div>
+
+        {/* Barra de Alterações Não Salvas (apenas para admin) */}
+        {isAdmin && batchEdits.size > 0 && (
+          <div className="flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-lg border-2 border-orange-400 dark:border-orange-600 shadow-lg animate-pulse">
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 rounded-full border-2 border-orange-500 dark:border-orange-400">
+              <span className="text-sm font-black text-orange-600 dark:text-orange-400">
+                ⚠️ {batchEdits.size} alteraç{batchEdits.size > 1 ? 'ões' : 'ão'} não salva{batchEdits.size > 1 ? 's' : ''}
+              </span>
+            </div>
+            <Button
+              onClick={saveBatchEdits}
+              disabled={isSavingBatch}
+              size="lg"
+              className="bg-green-600 hover:bg-green-700 font-black gap-2 text-base px-6 py-6 shadow-xl"
+            >
+              {isSavingBatch ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  SALVANDO...
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  SALVAR TUDO
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={cancelAllBatchEdits}
+              disabled={isSavingBatch}
+              variant="outline"
+              size="lg"
+              className="font-bold gap-2 border-2 px-6 py-6"
+            >
+              <X className="w-5 h-5" />
+              DESCARTAR
+            </Button>
+          </div>
+        )}
       </header>
 
       {/* Dashboard */}
@@ -665,13 +768,23 @@ export default function ChamadosPage() {
       {/* Paginação e Controles */}
       {filteredTickets.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border border-border">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{filteredTickets.length}</span>
-            {filteredTickets.length === 1 ? 'chamado encontrado' : 'chamados encontrados'}
-            <span className="hidden sm:inline">•</span>
-            <span className="hidden sm:inline">
-              Mostrando {startIndex + 1}-{Math.min(endIndex, filteredTickets.length)}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{filteredTickets.length}</span>
+              {filteredTickets.length === 1 ? 'chamado encontrado' : 'chamados encontrados'}
+              <span className="hidden sm:inline">•</span>
+              <span className="hidden sm:inline">
+                Mostrando {startIndex + 1}-{Math.min(endIndex, filteredTickets.length)}
+              </span>
+            </div>
+            <Button
+              onClick={exportToExcel}
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 font-bold gap-2 text-xs"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Baixar Planilha
+            </Button>
           </div>
 
           <div className="flex items-center gap-3">
@@ -778,6 +891,7 @@ export default function ChamadosPage() {
                 {paginatedTickets.map(ticket => {
                   const building = buildings.find(b => b.id === ticket.buildingId);
                   const isEditing = editingTicketId === ticket.id;
+                  const hasUnsavedChanges = batchEdits.has(ticket.id);
                   const statusConfig = STATUS_CONFIG[ticket.status];
 
                   return (
@@ -785,7 +899,8 @@ export default function ChamadosPage() {
                       key={ticket.id}
                       className={cn(
                         "hover:bg-muted/30 transition-colors border-b border-border bg-background cursor-pointer",
-                        isEditing && "bg-accent/50"
+                        isEditing && "bg-blue-50 dark:bg-blue-900/30",
+                        hasUnsavedChanges && "border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/20"
                       )}
                       onClick={() => {
                         if (isAdmin && !isEditing && !editingTicketNumberId) {
@@ -858,8 +973,13 @@ export default function ChamadosPage() {
                       <td className="px-3 py-4 border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
                         {isAdmin && isEditing ? (
                           <Input
-                            value={editForm.location || ''}
-                            onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                            value={batchEdits.get(ticket.id)?.location || ticket.location}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {};
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, location: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
                             className="h-8 text-xs bg-background"
                           />
                         ) : (
@@ -870,8 +990,13 @@ export default function ChamadosPage() {
                       <td className="px-3 py-4 border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
                         {isAdmin && isEditing ? (
                           <Textarea
-                            value={editForm.description || ''}
-                            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                            value={batchEdits.get(ticket.id)?.description || ticket.description}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {};
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, description: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
                             className="min-h-[60px] text-xs bg-background"
                           />
                         ) : (
@@ -884,8 +1009,13 @@ export default function ChamadosPage() {
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
                         {isAdmin && isEditing ? (
                           <Select
-                            value={editForm.status}
-                            onValueChange={(value) => setEditForm({ ...editForm, status: value as Ticket['status'] })}
+                            value={batchEdits.get(ticket.id)?.status || ticket.status}
+                            onValueChange={(value) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {};
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, status: value as Ticket['status'] });
+                              setBatchEdits(newEdits);
+                            }}
                           >
                             <SelectTrigger className="h-8 text-xs bg-background">
                               <SelectValue />
@@ -1093,16 +1223,9 @@ export default function ChamadosPage() {
                           {isEditing ? (
                             <div className="flex gap-1 justify-center">
                               <button
-                                onClick={saveEdit}
-                                className="p-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                                title="Salvar"
-                              >
-                                <Save className="w-4 h-4" />
-                              </button>
-                              <button
                                 onClick={cancelEdit}
                                 className="p-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors dark:bg-muted dark:text-foreground"
-                                title="Cancelar"
+                                title="Fechar edição"
                               >
                                 <X className="w-4 h-4" />
                               </button>
