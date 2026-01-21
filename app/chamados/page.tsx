@@ -991,136 +991,56 @@ export default function ChamadosPage() {
                         {formatDate(ticket.createdAt)}
                       </td>
 
-                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
-                        {isAdmin && isEditing ? (
-                          <Input
-                            type="date"
-                            value={editForm.deadline?.split('T')[0] || ''}
-                            onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
-                            className="h-8 text-xs bg-background w-32 mx-auto"
-                          />
-                        ) : (
-                          <div className="text-blue-600 dark:text-blue-400 font-medium">
-                            {ticket.deadline ? formatDate(ticket.deadline) : '--'}
-                          </div>
-                        )}
+                      <td className="px-3 py-4 text-center border-x border-border/50">
+                        <div className="text-blue-600 dark:text-blue-400 font-medium">
+                          {ticket.deadline ? formatDate(ticket.deadline) : '--'}
+                        </div>
                       </td>
 
-                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
-                        {isAdmin && isEditing ? (
-                          <div className="space-y-2">
-                            <Input
-                              type="date"
-                              value={editForm.reprogrammingDate?.split('T')[0] || ''}
-                              onChange={(e) => setEditForm({ ...editForm, reprogrammingDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
-                              className="h-8 text-xs bg-background w-32 mx-auto"
-                            />
-                            {editForm.reprogrammingDate && editForm.reprogrammingDate !== ticket.reprogrammingDate && (
-                              <Textarea
-                                value={reprogrammingReason}
-                                onChange={(e) => setReprogrammingReason(e.target.value)}
-                                className="min-h-[50px] text-xs bg-background"
-                                placeholder="Motivo da reprogramação..."
-                              />
-                            )}
+                      <td className="px-3 py-4 text-center border-x border-border/50">
+                        <div className="space-y-1">
+                          {ticket.reprogrammingDate && (
+                            <div className="text-orange-600 dark:text-orange-400 font-bold">
+                              {formatDate(ticket.reprogrammingDate)}
+                            </div>
+                          )}
+                          {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
+                            <div
+                              className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium cursor-help relative group"
+                              title="Ver histórico de reprogramações"
+                            >
+                              <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center font-bold text-[10px]">!</span>
+                              Reprogramado {ticket.reprogrammingHistory.length}x
 
-                            {/* Lista de reprogramações existentes com botão de deletar */}
-                            {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
-                              <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/10 rounded border border-amber-200 dark:border-amber-800">
-                                <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 mb-1">Reprogramações anteriores:</div>
-                                <div className="space-y-1">
+                              {/* Tooltip com histórico - apenas datas */}
+                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-48 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
+                                <div className="text-xs font-bold mb-2 text-gray-900 dark:text-gray-100">Datas de Reprogramação:</div>
+                                <div className="space-y-1 max-h-60 overflow-y-auto">
                                   {ticket.reprogrammingHistory.map((entry: any, index: number) => {
                                     const isObject = typeof entry === 'object' && entry.date;
                                     const date = isObject ? entry.date : entry;
 
                                     return (
-                                      <div key={index} className="flex items-center justify-between gap-1 text-xs">
-                                        <span className="text-amber-700 dark:text-amber-300 font-semibold">
-                                          {formatDate(date)}
-                                        </span>
-                                        <button
-                                          onClick={async (e) => {
-                                            e.stopPropagation();
-                                            if (confirm(`Deletar reprogramação de ${formatDate(date)}?`)) {
-                                              const updatedHistory = ticket.reprogrammingHistory.filter((_: any, i: number) => i !== index);
-                                              try {
-                                                await dataService.updateTicket(ticket.id, {
-                                                  reprogrammingHistory: updatedHistory
-                                                });
-                                                await loadData();
-                                                toast.success('Reprogramação deletada!');
-                                              } catch (error) {
-                                                toast.error('Erro ao deletar reprogramação.');
-                                              }
-                                            }
-                                          }}
-                                          className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors"
-                                          title="Deletar reprogramação"
-                                        >
-                                          <X className="w-3 h-3 text-red-600" />
-                                        </button>
+                                      <div key={index} className="text-amber-700 dark:text-amber-300 text-sm font-semibold">
+                                        {formatDate(date)}
                                       </div>
                                     );
                                   })}
                                 </div>
+                                {/* Seta do tooltip */}
+                                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-white dark:border-t-gray-800"></div>
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            {ticket.reprogrammingDate && (
-                              <div className="text-orange-600 dark:text-orange-400 font-bold">
-                                {formatDate(ticket.reprogrammingDate)}
-                              </div>
-                            )}
-                            {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
-                              <div
-                                className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium cursor-help relative group"
-                                title="Ver histórico de reprogramações"
-                              >
-                                <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center font-bold text-[10px]">!</span>
-                                Reprogramado {ticket.reprogrammingHistory.length}x
-
-                                {/* Tooltip com histórico - apenas datas */}
-                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-48 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
-                                  <div className="text-xs font-bold mb-2 text-gray-900 dark:text-gray-100">Datas de Reprogramação:</div>
-                                  <div className="space-y-1 max-h-60 overflow-y-auto">
-                                    {ticket.reprogrammingHistory.map((entry: any, index: number) => {
-                                      const isObject = typeof entry === 'object' && entry.date;
-                                      const date = isObject ? entry.date : entry;
-
-                                      return (
-                                        <div key={index} className="text-amber-700 dark:text-amber-300 text-sm font-semibold">
-                                          {formatDate(date)}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                  {/* Seta do tooltip */}
-                                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-white dark:border-t-gray-800"></div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
-                      <td className="px-3 py-4 text-muted-foreground text-xs border-x border-border/50" onClick={(e) => isAdmin && isEditing && e.stopPropagation()}>
-                        {isAdmin && isEditing ? (
-                          <Textarea
-                            value={editForm.constructorReturn || ''}
-                            onChange={(e) => setEditForm({ ...editForm, constructorReturn: e.target.value })}
-                            className="min-h-[60px] text-xs bg-background"
-                            placeholder="Retorno da construtora..."
-                          />
-                        ) : (
-                          <div className="max-w-[250px] text-xs">
-                            {/* Retorno da construtora */}
-                            <div className="truncate cursor-help" title={ticket.constructorReturn || ''}>
-                              {ticket.constructorReturn || '--'}
-                            </div>
+                      <td className="px-3 py-4 text-muted-foreground text-xs border-x border-border/50">
+                        <div className="max-w-[250px] text-xs">
+                          <div className="truncate cursor-help" title={ticket.constructorReturn || ''}>
+                            {ticket.constructorReturn || '--'}
                           </div>
-                        )}
+                        </div>
                       </td>
 
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
