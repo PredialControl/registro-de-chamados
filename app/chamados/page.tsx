@@ -149,6 +149,11 @@ export default function ChamadosPage() {
         const building = buildings.find(b => b.id === ticket.buildingId);
         const statusLabel = STATUS_CONFIG[ticket.status]?.label || ticket.status;
 
+        // Gerar links das fotos separados por quebra de linha
+        const photoLinks = ticket.photoUrls && ticket.photoUrls.length > 0
+          ? ticket.photoUrls.map((url, idx) => `Foto ${idx + 1}: ${url}`).join('\n')
+          : '--';
+
         return {
           'Nº Chamado': ticket.externalTicketId || 'SEM Nº',
           'Prédio': building?.name || 'N/A',
@@ -161,6 +166,7 @@ export default function ChamadosPage() {
           'Retorno Construtora': ticket.constructorReturn || '--',
           'Responsável': ticket.responsible || '--',
           'Qtd. Fotos': ticket.photoUrls?.length || 0,
+          'Links das Fotos': photoLinks,
         };
       });
 
@@ -180,6 +186,7 @@ export default function ChamadosPage() {
         { wch: 40 }, // Retorno
         { wch: 15 }, // Responsável
         { wch: 12 }, // Qtd Fotos
+        { wch: 80 }, // Links das Fotos
       ];
       ws['!cols'] = colWidths;
 

@@ -195,15 +195,16 @@ export default function TicketPage() {
 
               <div className="grid grid-cols-3 gap-3">
                 {photoPreviews.map((photo, index) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-border group">
+                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-border">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={photo} alt={`Preview ${index}`} className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => removePhoto(index)}
-                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1.5 shadow-lg hover:bg-red-700 transition-colors z-10"
+                      title="Remover foto"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
@@ -222,6 +223,7 @@ export default function TicketPage() {
               <input
                 type="file"
                 accept="image/*"
+                capture="environment"
                 multiple
                 className="hidden"
                 ref={fileInputRef}
