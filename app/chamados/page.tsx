@@ -319,6 +319,11 @@ export default function ChamadosPage() {
       (ticket.location && ticket.location.toLowerCase().includes(searchKeyword.toLowerCase()));
 
     return statusMatch && buildingMatch && dateMatch && monthMatch && numberMatch && keywordMatch;
+  }).sort((a, b) => {
+    // Ordenar por data de criação: mais novo primeiro
+    const dateA = new Date(a.createdAt || 0).getTime();
+    const dateB = new Date(b.createdAt || 0).getTime();
+    return dateB - dateA;
   });
 
   // Paginação
