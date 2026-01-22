@@ -401,30 +401,92 @@ export const dataService = {
 
     getTicketsForUser: async (user: User, limit?: number): Promise<Ticket[]> => {
         if (user.role === 'admin') {
-            // Admin vê TODOS os tickets - buscar em lotes para evitar limite de 1000
+            // Admin vê TODOS os tickets - buscar em lotes menores para evitar timeout
             console.log('🔄 Iniciando carregamento de TODOS os tickets para admin...');
             let allTickets: any[] = [];
             let from = 0;
-            const batchSize = 1000;
+            const batchSize = 500; // REDUZIDO para 500 para evitar timeout
             let hasMore = true;
             let iteration = 0;
+            const startTime = Date.now();
 
             while (hasMore) {
                 iteration++;
                 console.log(`📦 Lote ${iteration}: buscando tickets ${from} a ${from + batchSize - 1}...`);
 
+                try {
+                    const { data, error } = await supabase
+                        .from('tickets')
+                        .select('*')
+                        .order('id', { ascending: false })
+                        .range(from, from + batchSize - 1)
+                        .abortSignal(AbortSignal.timeout(8000)); // Timeout de 8 segundos por lote
+
+                    if (error) {
+                        console.error('❌ Error fetching admin tickets:', error);
+                        // Se der timeout, tentar com lote ainda menor
+                        if (error.code === '57014' && batchSize > 100) {
+                            console.warn('⚠️ Timeout detectado! Reduzindo tamanho do lote...');
+                            // Não quebra o loop, tenta novamente
+                            continue;
+                        }
+                        break;
+                    }
+
+                    console.log(`   📊 Lote ${iteration}: recebidos ${data?.length || 0} tickets em ${Date.now() - startTime}ms`);
+
+                    if (data && data.length > 0) {
+                        allTickets = [...allTickets, ...data];
+                        from += batchSize;
+                        hasMore = data.length === batchSize;
+                        console.log(`   ✅ Total acumulado: ${allTickets.length} | Continuar: ${hasMore ? 'SIM' : 'NÃO'}`);
+                    } else {
+                        console.log(`   ⚠️ Nenhum ticket retornado, finalizando...`);
+                        hasMore = false;
+                    }
+                } catch (err) {
+                    console.error('❌ Erro na busca:', err);
+                    break;
+                }
+            }
+
+            const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            console.log(`✅ Admin ${user.name}: ${allTickets.length} chamados carregados em ${iteration} lote(s) (${totalTime}s)`);
+            return allTickets.map(mapTicket);
+        }
+
+        // Usuários comuns veem TODOS os chamados dos prédios deles - buscar em lotes
+        console.log(`🔄 Carregando tickets para usuário ${user.name} (${user.allowedBuildings.length} prédios)...`);
+        let allTickets: any[] = [];
+        let from = 0;
+        const batchSize = 500; // REDUZIDO para 500 para evitar timeout
+        let hasMore = true;
+        let iteration = 0;
+        const startTime = Date.now();
+
+        while (hasMore) {
+            iteration++;
+            console.log(`📦 Lote ${iteration}: buscando tickets ${from} a ${from + batchSize - 1}...`);
+
+            try {
                 const { data, error } = await supabase
                     .from('tickets')
                     .select('*')
+                    .in('building_id', user.allowedBuildings)
                     .order('id', { ascending: false })
-                    .range(from, from + batchSize - 1);
+                    .range(from, from + batchSize - 1)
+                    .abortSignal(AbortSignal.timeout(8000)); // Timeout de 8 segundos por lote
 
                 if (error) {
-                    console.error('❌ Error fetching admin tickets:', error);
+                    console.error('❌ Error fetching user tickets:', error);
+                    if (error.code === '57014' && batchSize > 100) {
+                        console.warn('⚠️ Timeout detectado! Reduzindo tamanho do lote...');
+                        continue;
+                    }
                     break;
                 }
 
-                console.log(`   📊 Lote ${iteration}: recebidos ${data?.length || 0} tickets`);
+                console.log(`   📊 Lote ${iteration}: recebidos ${data?.length || 0} tickets em ${Date.now() - startTime}ms`);
 
                 if (data && data.length > 0) {
                     allTickets = [...allTickets, ...data];
@@ -435,50 +497,14 @@ export const dataService = {
                     console.log(`   ⚠️ Nenhum ticket retornado, finalizando...`);
                     hasMore = false;
                 }
-            }
-
-            console.log(`✅ Admin ${user.name}: ${allTickets.length} chamados carregados em ${iteration} lote(s)`);
-            return allTickets.map(mapTicket);
-        }
-
-        // Usuários comuns veem TODOS os chamados dos prédios deles - buscar em lotes
-        console.log(`🔄 Carregando tickets para usuário ${user.name} (${user.allowedBuildings.length} prédios)...`);
-        let allTickets: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
-        let iteration = 0;
-
-        while (hasMore) {
-            iteration++;
-            console.log(`📦 Lote ${iteration}: buscando tickets ${from} a ${from + batchSize - 1}...`);
-
-            const { data, error } = await supabase
-                .from('tickets')
-                .select('*')
-                .in('building_id', user.allowedBuildings)
-                .order('id', { ascending: false })
-                .range(from, from + batchSize - 1);
-
-            if (error) {
-                console.error('❌ Error fetching user tickets:', error);
+            } catch (err) {
+                console.error('❌ Erro na busca:', err);
                 break;
             }
-
-            console.log(`   📊 Lote ${iteration}: recebidos ${data?.length || 0} tickets`);
-
-            if (data && data.length > 0) {
-                allTickets = [...allTickets, ...data];
-                from += batchSize;
-                hasMore = data.length === batchSize;
-                console.log(`   ✅ Total acumulado: ${allTickets.length} | Continuar: ${hasMore ? 'SIM' : 'NÃO'}`);
-            } else {
-                console.log(`   ⚠️ Nenhum ticket retornado, finalizando...`);
-                hasMore = false;
-            }
         }
 
-        console.log(`✅ Usuário ${user.name}: ${allTickets.length} chamados carregados em ${iteration} lote(s)`);
+        const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`✅ Usuário ${user.name}: ${allTickets.length} chamados carregados em ${iteration} lote(s) (${totalTime}s)`);
         return allTickets.map(mapTicket);
     },
 
