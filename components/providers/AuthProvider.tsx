@@ -88,24 +88,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const login = async (email: string, password: string): Promise<boolean> => {
         try {
+            console.log('🔐 Tentando fazer login:', email);
+
             // Validar senha padrão
             if (password !== '123456') {
-                console.error('Senha incorreta');
+                console.error('❌ Senha incorreta');
                 return false;
             }
+
+            console.log('✅ Senha correta, buscando usuário...');
 
             // Buscar usuário pelo email
             const foundUser = await dataService.getUserByEmail(email);
 
+            console.log('👤 Usuário encontrado:', foundUser);
+
             if (foundUser) {
                 setUser(foundUser);
                 storage.set(STORAGE_KEYS.SESSION, foundUser);
+                console.log('✅ Login bem-sucedido!');
                 return true;
             }
 
+            console.warn('⚠️ Usuário não encontrado no banco');
             return false;
         } catch (error) {
-            console.error('Erro no login:', error);
+            console.error('❌ Erro no login:', error);
             return false;
         }
     };
