@@ -419,8 +419,7 @@ export const dataService = {
                         .from('tickets')
                         .select('*')
                         .order('id', { ascending: false })
-                        .range(from, from + batchSize - 1)
-                        .abortSignal(AbortSignal.timeout(8000)); // Timeout de 8 segundos por lote
+                        .range(from, from + batchSize - 1);
 
                     if (error) {
                         console.error('❌ Error fetching admin tickets:', error);
@@ -474,8 +473,7 @@ export const dataService = {
                     .select('*')
                     .in('building_id', user.allowedBuildings)
                     .order('id', { ascending: false })
-                    .range(from, from + batchSize - 1)
-                    .abortSignal(AbortSignal.timeout(8000)); // Timeout de 8 segundos por lote
+                    .range(from, from + batchSize - 1);
 
                 if (error) {
                     console.error('❌ Error fetching user tickets:', error);
