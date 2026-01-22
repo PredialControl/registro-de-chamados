@@ -96,17 +96,17 @@ export default function AdminPage() {
       } else {
         // Na tela inicial, buscar contagem otimizada de pendentes por prédio
         const pendingCounts = await dataService.getPendingCountsByBuilding();
-        
+
         // Criar um mapa de contagem para acesso rápido
         const pendingMap = new Map<string, number>();
         pendingCounts.forEach(({ buildingId, count }) => {
           pendingMap.set(buildingId, count);
         });
 
-        // Buscar tickets totais (apenas para display do total geral)
-        const ticketsData = await dataService.getTickets(1000);
+        // Buscar TODOS os tickets usando o método que carrega em lotes
+        const ticketsData = await dataService.getTicketsForUser(user!);
         setTickets(ticketsData);
-        
+
         // Armazenar contagem de pendentes para uso na renderização
         setPendingCounts(pendingMap);
       }
