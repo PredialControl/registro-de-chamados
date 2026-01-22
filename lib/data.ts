@@ -402,12 +402,17 @@ export const dataService = {
     getTicketsForUser: async (user: User, limit?: number): Promise<Ticket[]> => {
         if (user.role === 'admin') {
             // Admin vê TODOS os tickets - buscar em lotes para evitar limite de 1000
+            console.log('🔄 Iniciando carregamento de TODOS os tickets para admin...');
             let allTickets: any[] = [];
             let from = 0;
             const batchSize = 1000;
             let hasMore = true;
+            let iteration = 0;
 
             while (hasMore) {
+                iteration++;
+                console.log(`📦 Lote ${iteration}: buscando tickets ${from} a ${from + batchSize - 1}...`);
+
                 const { data, error } = await supabase
                     .from('tickets')
                     .select('*')
@@ -415,30 +420,39 @@ export const dataService = {
                     .range(from, from + batchSize - 1);
 
                 if (error) {
-                    console.error('Error fetching admin tickets:', error);
+                    console.error('❌ Error fetching admin tickets:', error);
                     break;
                 }
+
+                console.log(`   📊 Lote ${iteration}: recebidos ${data?.length || 0} tickets`);
 
                 if (data && data.length > 0) {
                     allTickets = [...allTickets, ...data];
                     from += batchSize;
                     hasMore = data.length === batchSize;
+                    console.log(`   ✅ Total acumulado: ${allTickets.length} | Continuar: ${hasMore ? 'SIM' : 'NÃO'}`);
                 } else {
+                    console.log(`   ⚠️ Nenhum ticket retornado, finalizando...`);
                     hasMore = false;
                 }
             }
 
-            console.log(`✅ Admin ${user.name}: ${allTickets.length} chamados carregados`);
+            console.log(`✅ Admin ${user.name}: ${allTickets.length} chamados carregados em ${iteration} lote(s)`);
             return allTickets.map(mapTicket);
         }
 
         // Usuários comuns veem TODOS os chamados dos prédios deles - buscar em lotes
+        console.log(`🔄 Carregando tickets para usuário ${user.name} (${user.allowedBuildings.length} prédios)...`);
         let allTickets: any[] = [];
         let from = 0;
         const batchSize = 1000;
         let hasMore = true;
+        let iteration = 0;
 
         while (hasMore) {
+            iteration++;
+            console.log(`📦 Lote ${iteration}: buscando tickets ${from} a ${from + batchSize - 1}...`);
+
             const { data, error } = await supabase
                 .from('tickets')
                 .select('*')
@@ -447,20 +461,24 @@ export const dataService = {
                 .range(from, from + batchSize - 1);
 
             if (error) {
-                console.error('Error fetching user tickets:', error);
+                console.error('❌ Error fetching user tickets:', error);
                 break;
             }
+
+            console.log(`   📊 Lote ${iteration}: recebidos ${data?.length || 0} tickets`);
 
             if (data && data.length > 0) {
                 allTickets = [...allTickets, ...data];
                 from += batchSize;
                 hasMore = data.length === batchSize;
+                console.log(`   ✅ Total acumulado: ${allTickets.length} | Continuar: ${hasMore ? 'SIM' : 'NÃO'}`);
             } else {
+                console.log(`   ⚠️ Nenhum ticket retornado, finalizando...`);
                 hasMore = false;
             }
         }
 
-        console.log(`✅ Usuário ${user.name}: ${allTickets.length} chamados carregados`);
+        console.log(`✅ Usuário ${user.name}: ${allTickets.length} chamados carregados em ${iteration} lote(s)`);
         return allTickets.map(mapTicket);
     },
 
