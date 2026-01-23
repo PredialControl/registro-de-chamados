@@ -65,49 +65,106 @@ export default function ChamadosPage() {
   const [batchEdits, setBatchEdits] = useState<Map<string, Partial<Ticket>>>(new Map());
   const [isSavingBatch, setIsSavingBatch] = useState<boolean>(false);
 
+  // Modal de reprogramação
+  const [reprogrammingTicket, setReprogrammingTicket] = useState<Ticket | null>(null);
+  const [reprogrammingDate, setReprogrammingDate] = useState<string>('');
+  const [reprogrammingReason, setReprogrammingReason] = useState<string>('');
+  const [viewingHistoryTicket, setViewingHistoryTicket] = useState<Ticket | null>(null);
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
     }
   }, [user, isLoading, router]);
 
+  // Carregar prédios e usuários ao iniciar, mas não tickets
   useEffect(() => {
     if (user) {
-      loadData();
+      loadBuildingsAndUsers();
     }
   }, [user]);
 
-  const loadData = async () => {
-    if (user) {
-      setIsLoadingData(true);
-      try {
-        const [userTickets, userBuildings, allUsers] = await Promise.all([
-          dataService.getTicketsForUser(user),
-          dataService.getBuildingsForUser(user),
-          dataService.getUsers()
-        ]);
+  // Carregar tickets quando selecionar um prédio
+  useEffect(() => {
+    if (user && buildings.length > 0 && selectedBuilding !== 'todos') {
+      loadTicketsForBuilding();
+    }
+  }, [selectedBuilding]);
 
-        // Debug: mostrar tickets com histórico de reprogramação
-        const ticketsWithHistory = userTickets.filter(t => t.reprogrammingHistory && t.reprogrammingHistory.length > 0);
-        if (ticketsWithHistory.length > 0) {
-          console.log('📥 CARREGADOS do banco - Tickets com histórico:', ticketsWithHistory.map(t => ({
-            id: t.externalTicketId || t.id.substring(0, 8),
-            historyLength: t.reprogrammingHistory?.length,
-            history: t.reprogrammingHistory
-          })));
-        } else {
-          console.log('📥 CARREGADOS do banco - Nenhum ticket com histórico encontrado');
-        }
+  const loadBuildingsAndUsers = async () => {
+    if (!user) return;
 
-        setTickets(userTickets);
-        setBuildings(userBuildings);
-        setUsers(allUsers);
-      } catch (error) {
-        console.error('Error loading data:', error);
-        toast.error('Erro ao carregar dados.');
-      } finally {
-        setIsLoadingData(false);
+    setIsLoadingData(true);
+    try {
+      const [userBuildings, allUsers] = await Promise.all([
+        dataService.getBuildingsForUser(user),
+        dataService.getUsers()
+      ]);
+
+      setBuildings(userBuildings);
+      setUsers(allUsers);
+
+      // Se usuário comum tem apenas 1 prédio, selecionar automaticamente
+      if (user.role !== 'admin' && userBuildings.length === 1) {
+        setSelectedBuilding(userBuildings[0].id);
       }
+    } catch (error) {
+      console.error('Error loading buildings:', error);
+      toast.error('Erro ao carregar prédios.');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const loadTicketsForBuilding = async () => {
+    if (!user || selectedBuilding === 'todos') return;
+
+    setIsLoadingData(true);
+    try {
+      console.log(`🔄 Carregando tickets do prédio: ${selectedBuilding}`);
+      const buildingTickets = await dataService.getTicketsByBuilding(selectedBuilding, false);
+      setTickets(buildingTickets);
+    } catch (error) {
+      console.error('Error loading tickets:', error);
+      toast.error('Erro ao carregar chamados.');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const loadAllTickets = async () => {
+    if (!user) return;
+
+    if (user.role === 'admin' && selectedBuilding === 'todos') {
+      const confirm = window.confirm(
+        '⚠️ Carregar TODOS os chamados pode demorar.\n\n' +
+        'Recomendamos selecionar um prédio específico.\n\n' +
+        'Deseja continuar?'
+      );
+      if (!confirm) return;
+    }
+
+    setIsLoadingData(true);
+    try {
+      if (selectedBuilding === 'todos') {
+        console.log('⚠️ Carregando TODOS os chamados...');
+        const allTickets = await dataService.getTicketsForUser(user);
+        setTickets(allTickets);
+      } else {
+        await loadTicketsForBuilding();
+      }
+    } catch (error) {
+      console.error('Error loading all tickets:', error);
+      toast.error('Erro ao carregar chamados.');
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const refreshData = async () => {
+    await loadBuildingsAndUsers();
+    if (selectedBuilding !== 'todos') {
+      await loadTicketsForBuilding();
     }
   };
 
@@ -242,7 +299,11 @@ export default function ChamadosPage() {
       await Promise.all(savePromises);
 
       // Recarregar dados
-      await loadData();
+      if (selectedBuilding !== 'todos') {
+        await loadTicketsForBuilding();
+      } else {
+        await loadAllTickets();
+      }
 
       // Limpar edições
       setBatchEdits(new Map());
@@ -261,13 +322,126 @@ export default function ChamadosPage() {
   };
 
 
+  const saveReprogramming = async () => {
+    if (!reprogrammingTicket || !reprogrammingDate || !reprogrammingReason.trim()) {
+      toast.error('Preencha a data e o motivo da reprogramação');
+      return;
+    }
+
+    try {
+      // Atualizar histórico
+      const newHistory = [
+        ...(reprogrammingTicket.reprogrammingHistory || []),
+        {
+          date: reprogrammingDate,
+          reason: reprogrammingReason
+        }
+      ];
+
+      // Formatar mensagem para o retorno
+      const reprogrammingMessage = `📅 REPROGRAMADO para ${formatDate(reprogrammingDate)}\n💬 Motivo: ${reprogrammingReason}`;
+
+      // Adicionar ao retorno existente (se houver)
+      const updatedReturn = reprogrammingTicket.constructorReturn
+        ? `${reprogrammingTicket.constructorReturn}\n\n${reprogrammingMessage}`
+        : reprogrammingMessage;
+
+      await dataService.updateTicket(reprogrammingTicket.id, {
+        reprogrammingDate: reprogrammingDate,
+        reprogrammingHistory: newHistory,
+        constructorReturn: updatedReturn
+      });
+
+      // Fechar modal e limpar
+      setReprogrammingTicket(null);
+      setReprogrammingDate('');
+      setReprogrammingReason('');
+
+      // Recarregar dados
+      if (selectedBuilding !== 'todos') {
+        await loadTicketsForBuilding();
+      } else {
+        await loadAllTickets();
+      }
+
+      toast.success('Reprogramação adicionada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar reprogramação:', error);
+      toast.error('Erro ao salvar reprogramação');
+    }
+  };
+
+  const removeReprogramming = async (ticketId: string) => {
+    if (!confirm('⚠️ ATENÇÃO: Isso vai remover TODAS as reprogramações deste chamado.\n\nPara remover apenas uma, use o botão 🗑️ ao lado de cada reprogramação no histórico.\n\nDeseja continuar?')) {
+      return;
+    }
+
+    try {
+      await dataService.updateTicket(ticketId, {
+        reprogrammingDate: undefined,
+        reprogrammingHistory: []
+      });
+
+      // Recarregar dados
+      if (selectedBuilding !== 'todos') {
+        await loadTicketsForBuilding();
+      } else {
+        await loadAllTickets();
+      }
+
+      toast.success('Todas as reprogramações foram removidas!');
+    } catch (error) {
+      console.error('Erro ao remover reprogramação:', error);
+      toast.error('Erro ao remover reprogramação');
+    }
+  };
+
+  const removeSingleReprogramming = async (ticket: Ticket, indexToRemove: number) => {
+    if (!confirm(`Tem certeza que deseja remover esta reprogramação?`)) {
+      return;
+    }
+
+    try {
+      const newHistory = ticket.reprogrammingHistory?.filter((_, index) => index !== indexToRemove) || [];
+
+      // Se removeu a última, limpar a data de reprogramação também
+      const newDate = newHistory.length > 0 ? newHistory[newHistory.length - 1].date : undefined;
+
+      await dataService.updateTicket(ticket.id, {
+        reprogrammingDate: newDate,
+        reprogrammingHistory: newHistory
+      });
+
+      // Recarregar dados
+      if (selectedBuilding !== 'todos') {
+        await loadTicketsForBuilding();
+      } else {
+        await loadAllTickets();
+      }
+
+      // Se estava no modal, atualizar
+      if (reprogrammingTicket?.id === ticket.id) {
+        setReprogrammingTicket(null);
+      }
+
+      toast.success('Reprogramação removida com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover reprogramação:', error);
+      toast.error('Erro ao remover reprogramação');
+    }
+  };
+
   const deleteTicket = async (ticketId: string) => {
     if (confirm('Tem certeza que deseja excluir este chamado?')) {
       try {
         console.log('🗑️ Tentando excluir chamado:', ticketId);
         await dataService.deleteTicket(ticketId);
         console.log('✅ Chamado excluído com sucesso!');
-        await loadData();
+        if (selectedBuilding !== 'todos') {
+          await loadTicketsForBuilding();
+        } else {
+          await loadAllTickets();
+        }
         toast.success('Chamado excluído com sucesso!');
       } catch (error: any) {
         console.error('❌ Erro ao excluir chamado:', error);
@@ -290,7 +464,9 @@ export default function ChamadosPage() {
       });
       setEditingTicketNumberId(null);
       setEditingTicketNumberValue('');
-      await loadData();
+      if (selectedBuilding !== 'todos') {
+        await loadTicketsForBuilding();
+      }
       toast.success('Número atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar número.');
@@ -497,7 +673,7 @@ export default function ChamadosPage() {
               <FileSpreadsheet className="w-4 h-4 text-green-600 dark:text-green-400" />
               <span className="hidden md:inline text-green-700 dark:text-green-300 font-semibold text-xs">Excel</span>
             </Button>
-            <Button onClick={loadData} variant="outline" size="sm" className="h-8 w-8 p-0">
+            <Button onClick={refreshData} variant="outline" size="sm" className="h-8 w-8 p-0">
               <RefreshCw className="w-4 h-4" />
             </Button>
           </div>
@@ -832,7 +1008,39 @@ export default function ChamadosPage() {
       )}
 
       {/* Table */}
-      {filteredTickets.length === 0 ? (
+      {selectedBuilding === 'todos' && tickets.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 text-center space-y-4">
+            <div className="text-6xl">🏢</div>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xl font-bold text-foreground mb-2">Selecione um Prédio</p>
+                <p className="text-muted-foreground">Escolha um prédio acima para visualizar os chamados</p>
+              </div>
+              {isAdmin && (
+                <>
+                  <div className="border-t border-border pt-4 mt-4">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Ou clique no botão abaixo para carregar TODOS os chamados
+                    </p>
+                    <Button
+                      onClick={loadAllTickets}
+                      size="lg"
+                      className="bg-blue-600 hover:bg-blue-700 font-bold gap-2"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                      Carregar Todos os Chamados
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2 italic">
+                      ⚠️ Atenção: Pode demorar se houver muitos chamados
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : filteredTickets.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Nenhum chamado encontrado</p>
@@ -937,14 +1145,60 @@ export default function ChamadosPage() {
                         )}
                       </td>
 
-                      <td className="px-3 py-4 border-x border-border/50">
-                        <div className="text-foreground text-xs truncate max-w-[120px]" title={ticket.location}>{ticket.location}</div>
+                      <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Input
+                            value={batchEdits.get(ticket.id)?.location || ticket.location || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, location: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
+                            placeholder="Local..."
+                            className="h-8 text-xs"
+                          />
+                        ) : (
+                          <div className="text-foreground text-xs truncate max-w-[120px]" title={ticket.location}>{ticket.location}</div>
+                        )}
                       </td>
 
-                      <td className="px-3 py-4 border-x border-border/50">
-                        <div className="text-muted-foreground text-xs line-clamp-2 cursor-help" title={ticket.description}>
-                          {ticket.description}
-                        </div>
+                      <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Textarea
+                            value={batchEdits.get(ticket.id)?.description || ticket.description || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, description: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
+                            placeholder="Descrição..."
+                            className="min-h-[60px] text-xs resize-none"
+                          />
+                        ) : (
+                          <div className="text-muted-foreground text-xs line-clamp-2 cursor-help" title={ticket.description}>
+                            {ticket.description}
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
@@ -994,56 +1248,142 @@ export default function ChamadosPage() {
                         {formatDate(ticket.createdAt)}
                       </td>
 
-                      <td className="px-3 py-4 text-center border-x border-border/50">
-                        <div className="text-blue-600 dark:text-blue-400 font-medium">
-                          {ticket.deadline ? formatDate(ticket.deadline) : '--'}
-                        </div>
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Input
+                            type="date"
+                            value={batchEdits.get(ticket.id)?.deadline || ticket.deadline || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, deadline: e.target.value || undefined });
+                              setBatchEdits(newEdits);
+                            }}
+                            className="h-8 text-xs text-center text-blue-600 dark:text-blue-400 font-medium border-blue-300 dark:border-blue-700"
+                          />
+                        ) : (
+                          <div className="text-blue-600 dark:text-blue-400 font-medium text-xs">
+                            {ticket.deadline ? formatDate(ticket.deadline) : '--'}
+                          </div>
+                        )}
                       </td>
 
-                      <td className="px-3 py-4 text-center border-x border-border/50">
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
                         <div className="space-y-1">
-                          {ticket.reprogrammingDate && (
-                            <div className="text-orange-600 dark:text-orange-400 font-bold">
-                              {formatDate(ticket.reprogrammingDate)}
+                          {isAdmin ? (
+                            <div className="flex flex-col gap-1 items-center">
+                              {ticket.reprogrammingDate ? (
+                                <>
+                                  <div className="text-orange-600 dark:text-orange-400 font-bold text-xs">
+                                    {formatDate(ticket.reprogrammingDate)}
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setReprogrammingTicket(ticket);
+                                        setReprogrammingDate(ticket.reprogrammingDate || '');
+                                        setReprogrammingReason('');
+                                      }}
+                                      size="sm"
+                                      className="h-6 text-[10px] px-2 bg-blue-600 hover:bg-blue-700 font-bold"
+                                      title="Adicionar nova reprogramação"
+                                    >
+                                      ➕ Nova
+                                    </Button>
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeReprogramming(ticket.id);
+                                      }}
+                                      size="sm"
+                                      variant="destructive"
+                                      className="h-6 text-[10px] px-2 font-bold"
+                                      title="Remover reprogramação atual"
+                                    >
+                                      🗑️ Remover
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReprogrammingTicket(ticket);
+                                    setReprogrammingDate('');
+                                    setReprogrammingReason('');
+                                  }}
+                                  size="sm"
+                                  className="h-7 text-xs bg-orange-600 hover:bg-orange-700 font-bold"
+                                  title="Adicionar reprogramação com motivo"
+                                >
+                                  📅 Reprogramar
+                                </Button>
+                              )}
                             </div>
+                          ) : (
+                            <>
+                              {ticket.reprogrammingDate && (
+                                <div className="text-orange-600 dark:text-orange-400 font-bold text-xs">
+                                  {formatDate(ticket.reprogrammingDate)}
+                                </div>
+                              )}
+                            </>
                           )}
                           {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
-                            <div
-                              className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium cursor-help relative group"
-                              title="Ver histórico de reprogramações"
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingHistoryTicket(ticket);
+                              }}
+                              className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium cursor-pointer hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                              title="Clique para ver histórico completo"
                             >
                               <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center font-bold text-[10px]">!</span>
                               Reprogramado {ticket.reprogrammingHistory.length}x
-
-                              {/* Tooltip com histórico - apenas datas */}
-                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-48 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
-                                <div className="text-xs font-bold mb-2 text-gray-900 dark:text-gray-100">Datas de Reprogramação:</div>
-                                <div className="space-y-1 max-h-60 overflow-y-auto">
-                                  {ticket.reprogrammingHistory.map((entry: any, index: number) => {
-                                    const isObject = typeof entry === 'object' && entry.date;
-                                    const date = isObject ? entry.date : entry;
-
-                                    return (
-                                      <div key={index} className="text-amber-700 dark:text-amber-300 text-sm font-semibold">
-                                        {formatDate(date)}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                                {/* Seta do tooltip */}
-                                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-white dark:border-t-gray-800"></div>
-                              </div>
-                            </div>
+                            </button>
                           )}
                         </div>
                       </td>
 
-                      <td className="px-3 py-4 text-muted-foreground text-xs border-x border-border/50">
-                        <div className="max-w-[250px] text-xs">
-                          <div className="truncate cursor-help" title={ticket.constructorReturn || ''}>
-                            {ticket.constructorReturn || '--'}
+                      <td className="px-3 py-4 text-muted-foreground text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Textarea
+                            value={batchEdits.get(ticket.id)?.constructorReturn || ticket.constructorReturn || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, constructorReturn: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
+                            placeholder="Retorno da construtora..."
+                            className="min-h-[60px] text-xs resize-none"
+                          />
+                        ) : (
+                          <div className="max-w-[250px] text-xs">
+                            <div className="truncate cursor-help" title={ticket.constructorReturn || ''}>
+                              {ticket.constructorReturn || '--'}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </td>
 
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
@@ -1282,6 +1622,215 @@ export default function ChamadosPage() {
                   <p className="text-xs text-muted-foreground mt-2 text-center">
                     Clique em uma foto para ver todas em tamanho maior
                   </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Modal de Reprogramação */}
+      {reprogrammingTicket && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <Card className="w-full max-w-lg shadow-2xl border">
+            <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  📅 Adicionar Reprogramação
+                  {reprogrammingTicket.externalTicketId && (
+                    <span className="text-sm bg-orange-600 text-white px-2 py-0.5 rounded-full font-bold">
+                      Nº {reprogrammingTicket.externalTicketId}
+                    </span>
+                  )}
+                </CardTitle>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {buildings.find(b => b.id === reprogrammingTicket.buildingId)?.name || 'Prédio não encontrado'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setReprogrammingTicket(null);
+                  setReprogrammingDate('');
+                  setReprogrammingReason('');
+                }}
+                className="hover:bg-muted"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              {/* Data de Reprogramação */}
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-2 block">
+                  Nova Data de Reprogramação *
+                </label>
+                <Input
+                  type="date"
+                  value={reprogrammingDate}
+                  onChange={(e) => setReprogrammingDate(e.target.value)}
+                  className="text-orange-600 dark:text-orange-400 font-bold"
+                  required
+                />
+              </div>
+
+              {/* Motivo da Reprogramação */}
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-2 block">
+                  Motivo da Reprogramação *
+                </label>
+                <Textarea
+                  value={reprogrammingReason}
+                  onChange={(e) => setReprogrammingReason(e.target.value)}
+                  placeholder="Descreva o motivo da reprogramação..."
+                  className="min-h-[120px] resize-none"
+                  required
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  💡 Este motivo será automaticamente adicionado ao campo "Retorno da Construtora"
+                </p>
+              </div>
+
+              {/* Histórico Atual */}
+              {reprogrammingTicket.reprogrammingHistory && reprogrammingTicket.reprogrammingHistory.length > 0 && (
+                <div className="pt-4 border-t">
+                  <label className="text-sm font-semibold text-foreground mb-2 block">
+                    Histórico de Reprogramações ({reprogrammingTicket.reprogrammingHistory.length})
+                  </label>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {reprogrammingTicket.reprogrammingHistory.map((item: any, index: number) => (
+                      <div key={index} className="text-xs bg-muted/50 p-3 rounded flex items-start justify-between gap-2 group hover:bg-muted transition-colors">
+                        <div className="flex-1">
+                          <div className="font-semibold text-amber-600 dark:text-amber-400">
+                            #{index + 1} - {formatDate(item.date)}
+                          </div>
+                          {item.reason && (
+                            <div className="text-muted-foreground mt-1">{item.reason}</div>
+                          )}
+                        </div>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeSingleReprogramming(reprogrammingTicket, index);
+                          }}
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remover esta reprogramação"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 italic">
+                    💡 Passe o mouse sobre cada item para ver o botão de exclusão
+                  </p>
+                </div>
+              )}
+
+              {/* Botões */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={saveReprogramming}
+                  className="flex-1 bg-orange-600 hover:bg-orange-700 font-bold gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Salvar Reprogramação
+                </Button>
+                <Button
+                  onClick={() => {
+                    setReprogrammingTicket(null);
+                    setReprogrammingDate('');
+                    setReprogrammingReason('');
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Modal de Visualização do Histórico */}
+      {viewingHistoryTicket && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border">
+            <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  📋 Histórico de Reprogramações
+                  {viewingHistoryTicket.externalTicketId && (
+                    <span className="text-sm bg-amber-600 text-white px-2 py-0.5 rounded-full font-bold">
+                      Nº {viewingHistoryTicket.externalTicketId}
+                    </span>
+                  )}
+                </CardTitle>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {buildings.find(b => b.id === viewingHistoryTicket.buildingId)?.name || 'Prédio não encontrado'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setViewingHistoryTicket(null)}
+                className="hover:bg-muted"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-6 overflow-y-auto">
+              {viewingHistoryTicket.reprogrammingHistory && viewingHistoryTicket.reprogrammingHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {viewingHistoryTicket.reprogrammingHistory.map((item: any, index: number) => (
+                    <Card key={index} className="p-4 bg-muted/30 hover:bg-muted/50 transition-colors group">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded-full font-bold">
+                              #{index + 1}
+                            </span>
+                            <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                              {formatDate(item.date)}
+                            </span>
+                          </div>
+                          {item.reason && (
+                            <div className="text-sm text-foreground bg-background p-3 rounded-lg border">
+                              <span className="font-semibold text-muted-foreground">Motivo:</span>
+                              <p className="mt-1">{item.reason}</p>
+                            </div>
+                          )}
+                        </div>
+                        {isAdmin && (
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeSingleReprogramming(viewingHistoryTicket, index);
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Remover esta reprogramação"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                  {isAdmin && (
+                    <p className="text-xs text-muted-foreground text-center italic mt-4">
+                      💡 Passe o mouse sobre cada item para ver o botão de exclusão
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma reprogramação encontrada
                 </div>
               )}
             </CardContent>

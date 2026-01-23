@@ -98,10 +98,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             console.log('✅ Senha correta, buscando usuário...');
 
-            // Buscar usuário pelo email
-            const foundUser = await dataService.getUserByEmail(email);
-
-            console.log('👤 Usuário encontrado:', foundUser);
+            // Tentar buscar usuário no banco primeiro
+            let foundUser = null;
+            try {
+                foundUser = await dataService.getUserByEmail(email);
+                console.log('👤 Usuário encontrado no banco:', foundUser);
+            } catch (dbError) {
+                console.warn('⚠️ Banco de dados indisponível, usando dados locais...');
+                // Se o banco estiver indisponível, usar dados mock
+                foundUser = MOCK_USERS.find(user => user.email === email);
+                console.log('👤 Usuário encontrado localmente:', foundUser);
+            }
 
             if (foundUser) {
                 setUser(foundUser);
@@ -110,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return true;
             }
 
-            console.warn('⚠️ Usuário não encontrado no banco');
+            console.warn('⚠️ Usuário não encontrado');
             return false;
         } catch (error) {
             console.error('❌ Erro no login:', error);
