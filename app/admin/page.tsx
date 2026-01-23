@@ -24,7 +24,8 @@ export default function AdminPage() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState('chamados');
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true); // Começa como true para evitar flash
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   // Navigation & Filter States
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export default function AdminPage() {
         );
         setTickets(ticketsData);
       } else {
-        // Na tela inicial, buscar contagem otimizada de pendentes por prédio
+        // Na tela inicial, apenas buscar contagem otimizada (não carregar TODOS os tickets)
         const pendingCounts = await dataService.getPendingCountsByBuilding();
 
         // Criar um mapa de contagem para acesso rápido
@@ -104,15 +105,15 @@ export default function AdminPage() {
           pendingMap.set(buildingId, count);
         });
 
-        // Buscar TODOS os tickets usando o método que carrega em lotes
-        const ticketsData = await dataService.getTicketsForUser(user!);
-        setTickets(ticketsData);
-
         // Armazenar contagem de pendentes para uso na renderização
         setPendingCounts(pendingMap);
+
+        // Não carregar todos os tickets na tela inicial para evitar lentidão
+        setTickets([]);
       }
     } finally {
       setIsLoadingData(false);
+      setInitialLoadComplete(true);
     }
   };
 
@@ -305,8 +306,62 @@ export default function AdminPage() {
 
   if (isLoading || !user) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin" />
+      <div className="flex flex-col justify-center items-center h-screen gap-4 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="relative">
+          <div className="absolute inset-0 bg-blue-600 rounded-full blur-xl opacity-20 animate-pulse"></div>
+          <Loader2 className="animate-spin w-16 h-16 text-blue-600 relative z-10" />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-xl font-bold text-foreground">Carregando painel admin...</p>
+          <p className="text-sm text-muted-foreground">Por favor, aguarde</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadingData && !initialLoadComplete) {
+    return (
+      <div className="flex flex-col justify-center items-center h-screen gap-6 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="relative">
+          {/* Círculo externo pulsante */}
+          <div className="absolute inset-0 bg-blue-600 rounded-full blur-2xl opacity-30 animate-pulse"></div>
+
+          {/* Círculo do meio */}
+          <div className="absolute inset-2 bg-blue-500 rounded-full blur-lg opacity-20 animate-ping"></div>
+
+          {/* Ícone de loading */}
+          <Loader2 className="animate-spin w-20 h-20 text-blue-600 relative z-10" strokeWidth={2.5} />
+        </div>
+
+        <div className="text-center space-y-3 max-w-md px-4">
+          <h2 className="text-2xl font-bold text-foreground">Carregando Prédios</h2>
+          <p className="text-base text-muted-foreground">Estamos buscando todos os prédios do sistema...</p>
+
+          {/* Barra de progresso animada */}
+          <div className="w-64 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mt-4">
+            <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-loading-bar"></div>
+          </div>
+        </div>
+
+        <style jsx>{`
+          @keyframes loading-bar {
+            0% {
+              width: 0%;
+              margin-left: 0%;
+            }
+            50% {
+              width: 75%;
+              margin-left: 0%;
+            }
+            100% {
+              width: 0%;
+              margin-left: 100%;
+            }
+          }
+          .animate-loading-bar {
+            animation: loading-bar 2s ease-in-out infinite;
+          }
+        `}</style>
       </div>
     );
   }
