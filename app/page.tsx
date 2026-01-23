@@ -26,7 +26,8 @@ export default function TicketPage() {
   const [description, setDescription] = useState('');
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -64,8 +65,9 @@ export default function TicketPage() {
       reader.readAsDataURL(file);
     });
 
-    // Reset input to allow selecting the same file again if removed
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    // Reset inputs to allow selecting the same file again if removed
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
   };
 
   const removePhoto = (index: number) => {
@@ -111,7 +113,8 @@ export default function TicketPage() {
       setLocation('');
       setDescription('');
       setPhotoPreviews([]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
     } catch (error: any) {
       console.error('❌ Error submitting ticket:', error);
       const errorMessage = error?.message || 'Erro desconhecido ao salvar chamado';
@@ -208,25 +211,48 @@ export default function TicketPage() {
                     </button>
                   </div>
                 ))}
-
-                {photoPreviews.length < 3 && (
-                  <div
-                    className="aspect-square border-2 border-dashed border-muted-foreground/20 rounded-lg flex flex-col items-center justify-center text-center hover:bg-muted/5 hover:border-blue-500/50 cursor-pointer transition-all group"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera className="w-6 h-6 text-muted-foreground group-hover:text-blue-500 mb-1" />
-                    <span className="text-[9px] font-bold text-muted-foreground group-hover:text-blue-500 uppercase">Adicionar</span>
-                  </div>
-                )}
               </div>
 
+              {photoPreviews.length < 3 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-muted-foreground/20 rounded-lg hover:bg-muted/5 hover:border-blue-500/50 transition-all group"
+                  >
+                    <Camera className="w-8 h-8 text-muted-foreground group-hover:text-blue-500" />
+                    <span className="text-xs font-semibold text-muted-foreground group-hover:text-blue-500">Tirar Foto</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-muted-foreground/20 rounded-lg hover:bg-muted/5 hover:border-green-500/50 transition-all group"
+                  >
+                    <Upload className="w-8 h-8 text-muted-foreground group-hover:text-green-500" />
+                    <span className="text-xs font-semibold text-muted-foreground group-hover:text-green-500">Da Galeria</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Input for camera */}
               <input
                 type="file"
                 accept="image/*"
                 capture="environment"
                 multiple
                 className="hidden"
-                ref={fileInputRef}
+                ref={cameraInputRef}
+                onChange={handlePhotoChange}
+              />
+
+              {/* Input for gallery */}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                ref={galleryInputRef}
                 onChange={handlePhotoChange}
               />
             </div>
