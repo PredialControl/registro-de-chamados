@@ -56,6 +56,7 @@ export default function ChamadosPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('todos');
   const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [selectedResponsible, setSelectedResponsible] = useState<string>('todos');
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(50);
@@ -216,7 +217,7 @@ export default function ChamadosPage() {
           'Prazo': ticket.deadline ? formatDate(ticket.deadline) : '--',
           'Reprogramação': ticket.reprogrammingDate ? formatDate(ticket.reprogrammingDate) : '--',
           'Retorno Construtora': ticket.constructorReturn || '--',
-          'Responsável': ticket.responsible || '--',
+          'Responsável': ticket.responsible || 'Construtora',
         };
       });
 
@@ -494,7 +495,12 @@ export default function ChamadosPage() {
       (ticket.description && ticket.description.toLowerCase().includes(searchKeyword.toLowerCase())) ||
       (ticket.location && ticket.location.toLowerCase().includes(searchKeyword.toLowerCase()));
 
-    return statusMatch && buildingMatch && dateMatch && monthMatch && numberMatch && keywordMatch;
+    // Filtro de responsável (não definido = Construtora)
+    const responsibleMatch = selectedResponsible === 'todos' ||
+      (selectedResponsible === 'Construtora' && (!ticket.responsible || ticket.responsible === 'Construtora')) ||
+      (selectedResponsible === 'Condomínio' && ticket.responsible === 'Condomínio');
+
+    return statusMatch && buildingMatch && dateMatch && monthMatch && numberMatch && keywordMatch && responsibleMatch;
   }).sort((a, b) => {
     // Ordenar por data de criação: mais novo primeiro
     const dateA = new Date(a.createdAt || 0).getTime();
@@ -514,7 +520,7 @@ export default function ChamadosPage() {
       setCurrentPage(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, [selectedStatus, selectedBuilding, selectedDate, selectedMonth, searchTicketNumber, searchKeyword]);
+  }, [selectedStatus, selectedBuilding, selectedDate, selectedMonth, searchTicketNumber, searchKeyword, selectedResponsible]);
 
   const ticketsByStatus = {
     todos: filteredTickets.length,
@@ -534,11 +540,10 @@ export default function ChamadosPage() {
     }))
     .filter(item => item.value > 0);
 
-  // Dados por responsável
+  // Dados por responsável (não definido = Construtora)
   const ticketsByResponsible = {
-    construtora: filteredTickets.filter(t => t.responsible === 'Construtora').length,
+    construtora: filteredTickets.filter(t => !t.responsible || t.responsible === 'Construtora').length,
     condominio: filteredTickets.filter(t => t.responsible === 'Condomínio').length,
-    naoDefinido: filteredTickets.filter(t => !t.responsible).length,
   };
 
   const responsibleChartData = [
@@ -551,13 +556,8 @@ export default function ChamadosPage() {
       name: 'Condomínio',
       value: ticketsByResponsible.condominio,
       color: '#3b82f6' // azul
-    },
-    ...(ticketsByResponsible.naoDefinido > 0 ? [{
-      name: 'Não Definido',
-      value: ticketsByResponsible.naoDefinido,
-      color: '#9ca3af' // cinza
-    }] : [])
-  ];
+    }
+  ].filter(item => item.value > 0);
 
   // Gerar lista de meses disponíveis a partir dos tickets
   const availableMonths = Array.from(new Set(
@@ -566,7 +566,7 @@ export default function ChamadosPage() {
       .map(t => t.createdAt.substring(0, 7))
   )).sort((a, b) => b.localeCompare(a)); // Ordem decrescente (mais recente primeiro)
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'building_admin';
 
   if (isLoading || !user) {
     return (
@@ -653,7 +653,9 @@ export default function ChamadosPage() {
             <div className="hidden md:flex items-center gap-2 pr-2 border-r border-border mr-1">
               <div className="flex flex-col items-end">
                 <span className="text-[10px] font-black uppercase text-foreground leading-none">{user.name}</span>
-                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest leading-tight">{user.role}</span>
+                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest leading-tight">
+                  {user.role === 'building_admin' ? 'ADMIN PRÉDIO' : user.role}
+                </span>
               </div>
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-sm ring-2 ring-background">
                 {user.name.charAt(0).toUpperCase()}
@@ -837,6 +839,17 @@ export default function ChamadosPage() {
                 {config.label} ({ticketsByStatus[key as keyof typeof ticketsByStatus]})
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedResponsible} onValueChange={setSelectedResponsible}>
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder="Responsável" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos Responsáveis</SelectItem>
+            <SelectItem value="Construtora">Construtora</SelectItem>
+            <SelectItem value="Condomínio">Condomínio</SelectItem>
           </SelectContent>
         </Select>
 
@@ -1417,7 +1430,7 @@ export default function ChamadosPage() {
                           </Select>
                         ) : (
                           <div className="text-xs font-medium">
-                            {ticket.responsible || '--'}
+                            {ticket.responsible || 'Construtora'}
                           </div>
                         )}
                       </td>
