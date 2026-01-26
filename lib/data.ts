@@ -536,30 +536,65 @@ export const dataService = {
         return result;
     },
 
-    // Buscar tickets por prédio específico (para admin)
-    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false, limit: number = 200): Promise<Ticket[]> => {
-        console.log(`🔍 Buscando tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}, Limite: ${limit}`);
+    // Buscar tickets por prédio específico (para admin) - CARREGAMENTO EM LOTES
+    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false): Promise<Ticket[]> => {
+        console.log(`🔍 Buscando TODOS os tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}`);
 
-        let query = supabase
-            .from('tickets')
-            .select('*')
-            .eq('building_id', buildingId)
-            .order('id', { ascending: false })
-            .limit(limit);
+        let allTickets: any[] = [];
+        let from = 0;
+        const batchSize = 200; // Buscar em lotes de 200
+        let hasMore = true;
+        let iteration = 0;
+        const startTime = Date.now();
 
-        if (onlyPending) {
-            query = query.or('is_registered.is.null,is_registered.eq.false');
+        while (hasMore) {
+            iteration++;
+            console.log(`📦 Lote ${iteration}: buscando tickets ${from} a ${from + batchSize - 1}...`);
+
+            try {
+                let query = supabase
+                    .from('tickets')
+                    .select('*')
+                    .eq('building_id', buildingId)
+                    .order('id', { ascending: false })
+                    .range(from, from + batchSize - 1);
+
+                if (onlyPending) {
+                    query = query.or('is_registered.is.null,is_registered.eq.false');
+                }
+
+                const { data, error } = await query;
+
+                if (error) {
+                    console.error('❌ Error fetching building tickets:', error);
+                    // Se der timeout, para de buscar e retorna o que já tem
+                    if (error.code === '57014') {
+                        console.warn('⚠️ Timeout detectado! Retornando tickets já carregados...');
+                        break;
+                    }
+                    break;
+                }
+
+                console.log(`   📊 Lote ${iteration}: recebidos ${data?.length || 0} tickets`);
+
+                if (data && data.length > 0) {
+                    allTickets = [...allTickets, ...data];
+                    from += batchSize;
+                    hasMore = data.length === batchSize;
+                    console.log(`   ✅ Total acumulado: ${allTickets.length} | Continuar: ${hasMore ? 'SIM' : 'NÃO'}`);
+                } else {
+                    console.log(`   ⚠️ Nenhum ticket retornado, finalizando...`);
+                    hasMore = false;
+                }
+            } catch (err) {
+                console.error('❌ Erro na busca:', err);
+                break;
+            }
         }
 
-        const { data, error } = await query;
-
-        if (error) {
-            console.error('Error fetching building tickets:', error);
-            return [];
-        }
-
-        console.log(`✅ Retornados ${data?.length || 0} tickets do prédio ${buildingId}`);
-        return (data || []).map(mapTicket);
+        const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`✅ Prédio ${buildingId}: ${allTickets.length} chamados carregados em ${iteration} lote(s) (${totalTime}s)`);
+        return allTickets.map(mapTicket);
     },
 
     // --- USER MANAGEMENT (Admin only) ---

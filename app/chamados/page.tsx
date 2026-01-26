@@ -122,14 +122,10 @@ export default function ChamadosPage() {
 
     setIsLoadingData(true);
     try {
-      console.log(`🔄 Carregando tickets do prédio: ${selectedBuilding}`);
+      console.log(`🔄 Carregando TODOS os tickets do prédio: ${selectedBuilding}`);
       const buildingTickets = await dataService.getTicketsByBuilding(selectedBuilding, false);
       setTickets(buildingTickets);
-
-      // Avisar se atingiu o limite
-      if (buildingTickets.length === 200) {
-        toast.info('📊 Mostrando os 200 chamados mais recentes. Use os filtros para refinar a busca.');
-      }
+      toast.success(`✅ ${buildingTickets.length} chamados carregados!`);
     } catch (error) {
       console.error('Error loading tickets:', error);
       toast.error('Erro ao carregar chamados.');
@@ -942,9 +938,9 @@ export default function ChamadosPage() {
                   Mostrando {startIndex + 1}-{Math.min(endIndex, filteredTickets.length)}
                 </span>
               </div>
-              {tickets.length === 200 && selectedBuilding !== 'todos' && (
-                <span className="text-[10px] sm:text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
-                  ⚠️ Últimos 200 registros
+              {tickets.length > 0 && selectedBuilding !== 'todos' && (
+                <span className="text-[10px] sm:text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
+                  ✅ Total: {tickets.length} chamados
                 </span>
               )}
             </div>
