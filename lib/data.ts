@@ -537,7 +537,7 @@ export const dataService = {
     },
 
     // Buscar tickets por prédio específico (para admin)
-    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false, limit: number = 1000): Promise<Ticket[]> => {
+    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false, limit: number = 200): Promise<Ticket[]> => {
         console.log(`🔍 Buscando tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}, Limite: ${limit}`);
 
         let query = supabase

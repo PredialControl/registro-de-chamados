@@ -125,6 +125,11 @@ export default function ChamadosPage() {
       console.log(`🔄 Carregando tickets do prédio: ${selectedBuilding}`);
       const buildingTickets = await dataService.getTicketsByBuilding(selectedBuilding, false);
       setTickets(buildingTickets);
+
+      // Avisar se atingiu o limite
+      if (buildingTickets.length === 200) {
+        toast.info('📊 Mostrando os 200 chamados mais recentes. Use os filtros para refinar a busca.');
+      }
     } catch (error) {
       console.error('Error loading tickets:', error);
       toast.error('Erro ao carregar chamados.');
@@ -928,13 +933,20 @@ export default function ChamadosPage() {
       {filteredTickets.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border border-border">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{filteredTickets.length}</span>
-              {filteredTickets.length === 1 ? 'chamado encontrado' : 'chamados encontrados'}
-              <span className="hidden sm:inline">•</span>
-              <span className="hidden sm:inline">
-                Mostrando {startIndex + 1}-{Math.min(endIndex, filteredTickets.length)}
-              </span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-foreground">{filteredTickets.length}</span>
+                {filteredTickets.length === 1 ? 'chamado encontrado' : 'chamados encontrados'}
+                <span className="hidden sm:inline">•</span>
+                <span className="hidden sm:inline">
+                  Mostrando {startIndex + 1}-{Math.min(endIndex, filteredTickets.length)}
+                </span>
+              </div>
+              {tickets.length === 200 && selectedBuilding !== 'todos' && (
+                <span className="text-[10px] sm:text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
+                  ⚠️ Últimos 200 registros
+                </span>
+              )}
             </div>
             <Button
               onClick={exportToExcel}
