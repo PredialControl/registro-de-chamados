@@ -209,22 +209,33 @@ export default function AdminPage() {
       return;
     }
 
-    if (editingBuilding) {
-      await dataService.updateBuilding(editingBuilding.id, {
-        name: buildingName,
-        address: buildingAddress
-      });
-      toast.success('Prédio atualizado!');
-    } else {
-      await dataService.createBuilding({
-        name: buildingName,
-        address: buildingAddress
-      });
-      toast.success('Prédio criado!');
-    }
+    try {
+      if (editingBuilding) {
+        await dataService.updateBuilding(editingBuilding.id, {
+          name: buildingName,
+          address: buildingAddress
+        });
+        toast.success('Prédio atualizado!');
+      } else {
+        const newBuilding = await dataService.createBuilding({
+          name: buildingName,
+          address: buildingAddress
+        });
 
-    cancelForm();
-    await loadData();
+        if (!newBuilding) {
+          toast.error('Erro ao criar prédio. Verifique o console para mais detalhes.');
+          return;
+        }
+
+        toast.success('Prédio criado com sucesso!');
+      }
+
+      cancelForm();
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao salvar prédio:', error);
+      toast.error('Erro ao salvar prédio');
+    }
   };
 
   const handleUserSubmit = async (e: React.FormEvent) => {
@@ -234,35 +245,47 @@ export default function AdminPage() {
       return;
     }
 
-    if (editingUser) {
-      await dataService.updateUser(editingUser.id, {
-        name: userName,
-        email: userEmail,
-        role: userRole,
-        turma: userTurma,
-        allowedBuildings: userAllowedBuildings
-      });
-      if (editingUser.id === user?.id) {
-        refreshUser();
-      }
-      toast.success('Usuário atualizado!');
-    } else {
-      if (users.some(u => u.email.toLowerCase() === userEmail.toLowerCase())) {
-        toast.error('Este e-mail já está em uso');
-        return;
-      }
-      await dataService.createUser({
-        name: userName,
-        email: userEmail,
-        role: userRole,
-        turma: userTurma,
-        allowedBuildings: userAllowedBuildings
-      });
-      toast.success('Usuário criado!');
-    }
+    try {
+      if (editingUser) {
+        await dataService.updateUser(editingUser.id, {
+          name: userName,
+          email: userEmail,
+          role: userRole,
+          turma: userTurma,
+          allowedBuildings: userAllowedBuildings
+        });
+        if (editingUser.id === user?.id) {
+          refreshUser();
+        }
+        toast.success('Usuário atualizado!');
+      } else {
+        if (users.some(u => u.email.toLowerCase() === userEmail.toLowerCase())) {
+          toast.error('Este e-mail já está em uso');
+          return;
+        }
 
-    cancelForm();
-    loadData();
+        const newUser = await dataService.createUser({
+          name: userName,
+          email: userEmail,
+          role: userRole,
+          turma: userTurma,
+          allowedBuildings: userAllowedBuildings
+        });
+
+        if (!newUser) {
+          toast.error('Erro ao criar usuário. Verifique o console para mais detalhes.');
+          return;
+        }
+
+        toast.success('Usuário criado com sucesso!');
+      }
+
+      cancelForm();
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao salvar usuário:', error);
+      toast.error('Erro ao salvar usuário');
+    }
   };
 
   const startEditBuilding = (building: Building) => {
