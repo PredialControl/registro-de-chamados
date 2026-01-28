@@ -536,65 +536,103 @@ export const dataService = {
         return result;
     },
 
-    // Buscar tickets por prédio específico (para admin) - CARREGAMENTO EM LOTES
-    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false): Promise<Ticket[]> => {
-        console.log(`🔍 Buscando TODOS os tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}`);
+    // Buscar tickets por prédio específico (para admin) - OTIMIZADO com limite inicial e lotes para evitar timeout
+    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false, initialLimit: number = 1000): Promise<Ticket[]> => {
+        console.log(`🔍 Buscando tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}, Limite inicial: ${initialLimit}`);
 
-        let allTickets: any[] = [];
-        let from = 0;
-        const batchSize = 200; // Buscar em lotes de 200
-        let hasMore = true;
-        let iteration = 0;
         const startTime = Date.now();
 
-        while (hasMore) {
-            iteration++;
-            console.log(`📦 Lote ${iteration}: buscando tickets ${from} a ${from + batchSize - 1}...`);
+        try {
+            // OTIMIZAÇÃO: Buscar em lotes de 50 tickets para evitar timeout (alguns prédios têm fotos muito pesadas)
+            const batchSize = 50;
+            let allTickets: any[] = [];
+            let offset = 0;
+            let hasMore = true;
 
-            try {
+            while (hasMore && allTickets.length < initialLimit) {
+                const currentBatchSize = Math.min(batchSize, initialLimit - allTickets.length);
+
+                console.log(`📦 Buscando lote ${Math.floor(offset / batchSize) + 1}: offset ${offset}, limit ${currentBatchSize}`);
+
                 let query = supabase
                     .from('tickets')
-                    .select('*')
+                    .select('*', { count: offset === 0 ? 'exact' : undefined }) // Contagem apenas no primeiro lote
                     .eq('building_id', buildingId)
                     .order('id', { ascending: false })
-                    .range(from, from + batchSize - 1);
+                    .range(offset, offset + currentBatchSize - 1);
 
                 if (onlyPending) {
                     query = query.or('is_registered.is.null,is_registered.eq.false');
                 }
 
-                const { data, error } = await query;
+                const { data, error, count } = await query;
 
                 if (error) {
-                    console.error('❌ Error fetching building tickets:', error);
-                    // Se der timeout, para de buscar e retorna o que já tem
+                    // Se der timeout mesmo com lotes menores, retornar o que conseguiu
                     if (error.code === '57014') {
-                        console.warn('⚠️ Timeout detectado! Retornando tickets já carregados...');
+                        console.warn(`⚠️ Timeout no lote ${Math.floor(offset / batchSize) + 1}. Retornando ${allTickets.length} tickets já carregados.`);
                         break;
                     }
-                    break;
+                    console.error('❌ Error fetching building tickets:', error);
+                    return allTickets.map(mapTicket);
                 }
-
-                console.log(`   📊 Lote ${iteration}: recebidos ${data?.length || 0} tickets`);
 
                 if (data && data.length > 0) {
                     allTickets = [...allTickets, ...data];
-                    from += batchSize;
-                    hasMore = data.length === batchSize;
-                    console.log(`   ✅ Total acumulado: ${allTickets.length} | Continuar: ${hasMore ? 'SIM' : 'NÃO'}`);
+                    offset += currentBatchSize;
+                    hasMore = data.length === currentBatchSize;
+
+                    console.log(`   ✅ Lote recebido: ${data.length} tickets | Total acumulado: ${allTickets.length}`);
+
+                    // Logar contagem total apenas no primeiro lote
+                    if (offset === currentBatchSize && count) {
+                        console.log(`   📊 Total de tickets no banco: ${count}`);
+                    }
                 } else {
-                    console.log(`   ⚠️ Nenhum ticket retornado, finalizando...`);
                     hasMore = false;
                 }
-            } catch (err) {
-                console.error('❌ Erro na busca:', err);
-                break;
             }
-        }
 
-        const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`✅ Prédio ${buildingId}: ${allTickets.length} chamados carregados em ${iteration} lote(s) (${totalTime}s)`);
-        return allTickets.map(mapTicket);
+            const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            console.log(`✅ Prédio ${buildingId}: ${allTickets.length} chamados carregados em ${totalTime}s`);
+
+            return allTickets.map(mapTicket);
+        } catch (err) {
+            console.error('❌ Erro na busca:', err);
+            return [];
+        }
+    },
+
+    // Nova função: buscar tickets com paginação (para implementar "carregar mais")
+    getTicketsByBuildingPaginated: async (
+        buildingId: string,
+        offset: number = 0,
+        limit: number = 100
+    ): Promise<{ tickets: Ticket[], hasMore: boolean, total: number }> => {
+        console.log(`🔍 Buscando tickets paginados - Prédio: ${buildingId}, Offset: ${offset}, Limite: ${limit}`);
+
+        try {
+            const { data, error, count } = await supabase
+                .from('tickets')
+                .select('*', { count: 'exact' })
+                .eq('building_id', buildingId)
+                .order('id', { ascending: false })
+                .range(offset, offset + limit - 1);
+
+            if (error) {
+                console.error('❌ Error fetching paginated tickets:', error);
+                return { tickets: [], hasMore: false, total: 0 };
+            }
+
+            return {
+                tickets: (data || []).map(mapTicket),
+                hasMore: (count || 0) > offset + limit,
+                total: count || 0
+            };
+        } catch (err) {
+            console.error('❌ Erro na busca paginada:', err);
+            return { tickets: [], hasMore: false, total: 0 };
+        }
     },
 
     // --- USER MANAGEMENT (Admin only) ---

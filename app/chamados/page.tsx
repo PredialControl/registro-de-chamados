@@ -122,10 +122,13 @@ export default function ChamadosPage() {
 
     setIsLoadingData(true);
     try {
-      console.log(`🔄 Carregando TODOS os tickets do prédio: ${selectedBuilding}`);
-      const buildingTickets = await dataService.getTicketsByBuilding(selectedBuilding, false);
+      console.log(`🔄 Carregando tickets do prédio: ${selectedBuilding}`);
+      // OTIMIZAÇÃO: Buscar até 1000 tickets em lotes de 50 (otimizado para evitar timeout)
+      const buildingTickets = await dataService.getTicketsByBuilding(selectedBuilding, false, 1000);
       setTickets(buildingTickets);
-      toast.success(`✅ ${buildingTickets.length} chamados carregados!`);
+
+      const buildingName = buildings.find(b => b.id === selectedBuilding)?.name || 'Prédio';
+      toast.success(`✅ ${buildingTickets.length} chamados de "${buildingName}" carregados!`);
     } catch (error) {
       console.error('Error loading tickets:', error);
       toast.error('Erro ao carregar chamados.');
