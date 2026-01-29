@@ -194,6 +194,36 @@ export default function ChamadosPage() {
     });
   };
 
+  // Função para verificar se o prazo está vencido
+  const isDeadlineExpired = (ticket: Ticket): boolean => {
+    // Se tem reprogramação, considerar a data de reprogramação ao invés do prazo original
+    const effectiveDeadline = ticket.reprogrammingDate || ticket.deadline;
+
+    if (!effectiveDeadline) return false;
+
+    // Status que não devem ser marcados como vencidos
+    const completedStatuses: Ticket['status'][] = ['concluido', 'f_indevido', 'improcedente'];
+    if (completedStatuses.includes(ticket.status)) return false;
+
+    // Comparar data
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let deadlineDate: Date;
+
+    // Se for formato YYYY-MM-DD
+    if (effectiveDeadline.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = effectiveDeadline.split('-');
+      deadlineDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } else {
+      deadlineDate = new Date(effectiveDeadline);
+    }
+
+    deadlineDate.setHours(0, 0, 0, 0);
+
+    return deadlineDate < today;
+  };
+
   const downloadPhoto = (photoUrl: string, ticketId: string, index?: number) => {
     const link = document.createElement('a');
     link.href = photoUrl;
@@ -1094,13 +1124,15 @@ export default function ChamadosPage() {
                   const building = buildings.find(b => b.id === ticket.buildingId);
                   const hasUnsavedChanges = batchEdits.has(ticket.id);
                   const statusConfig = STATUS_CONFIG[ticket.status];
+                  const isExpired = isDeadlineExpired(ticket);
 
                   return (
                     <tr
                       key={ticket.id}
                       className={cn(
                         "hover:bg-muted/30 transition-colors border-b border-border bg-background",
-                        hasUnsavedChanges && "border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/20"
+                        hasUnsavedChanges && "border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/20",
+                        isExpired && !hasUnsavedChanges && "border-l-4 border-l-red-600 bg-red-50/30 dark:bg-red-900/10"
                       )}
                       onClick={() => {
                         // Apenas para não-admin visualizar
@@ -1274,29 +1306,57 @@ export default function ChamadosPage() {
 
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
                         {isAdmin ? (
-                          <Input
-                            type="date"
-                            value={batchEdits.get(ticket.id)?.deadline || ticket.deadline || ''}
-                            onChange={(e) => {
-                              const currentEdit = batchEdits.get(ticket.id) || {
-                                buildingId: ticket.buildingId,
-                                location: ticket.location,
-                                description: ticket.description,
-                                status: ticket.status,
-                                deadline: ticket.deadline,
-                                reprogrammingDate: ticket.reprogrammingDate,
-                                constructorReturn: ticket.constructorReturn,
-                                responsible: ticket.responsible,
-                              };
-                              const newEdits = new Map(batchEdits);
-                              newEdits.set(ticket.id, { ...currentEdit, deadline: e.target.value || undefined });
-                              setBatchEdits(newEdits);
-                            }}
-                            className="h-8 text-xs text-center text-blue-600 dark:text-blue-400 font-medium border-blue-300 dark:border-blue-700"
-                          />
+                          <div className="space-y-1">
+                            <Input
+                              type="date"
+                              value={batchEdits.get(ticket.id)?.deadline || ticket.deadline || ''}
+                              onChange={(e) => {
+                                const currentEdit = batchEdits.get(ticket.id) || {
+                                  buildingId: ticket.buildingId,
+                                  location: ticket.location,
+                                  description: ticket.description,
+                                  status: ticket.status,
+                                  deadline: ticket.deadline,
+                                  reprogrammingDate: ticket.reprogrammingDate,
+                                  constructorReturn: ticket.constructorReturn,
+                                  responsible: ticket.responsible,
+                                };
+                                const newEdits = new Map(batchEdits);
+                                newEdits.set(ticket.id, { ...currentEdit, deadline: e.target.value || undefined });
+                                setBatchEdits(newEdits);
+                              }}
+                              className={cn(
+                                "h-8 text-xs text-center font-medium",
+                                isDeadlineExpired(ticket)
+                                  ? "text-red-600 dark:text-red-400 border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-900/20"
+                                  : "text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                              )}
+                            />
+                            {isDeadlineExpired(ticket) && (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded-full border border-red-300 dark:border-red-700 animate-pulse">
+                                  ⚠️ VENCIDO
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         ) : (
-                          <div className="text-blue-600 dark:text-blue-400 font-medium text-xs">
-                            {ticket.deadline ? formatDate(ticket.deadline) : '--'}
+                          <div className="space-y-1">
+                            <div className={cn(
+                              "font-medium text-xs",
+                              isDeadlineExpired(ticket)
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : "text-blue-600 dark:text-blue-400"
+                            )}>
+                              {ticket.deadline ? formatDate(ticket.deadline) : '--'}
+                            </div>
+                            {isDeadlineExpired(ticket) && (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded-full border border-red-300 dark:border-red-700 animate-pulse">
+                                  ⚠️ VENCIDO
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
