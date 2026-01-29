@@ -49,21 +49,102 @@ export default function TicketPage() {
     loadBuildings();
   }, [user]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onerror = () => {
+        reject(new Error('Erro ao ler o arquivo da imagem'));
+      };
+
+      reader.onload = (e) => {
+        const img = new Image();
+
+        img.onerror = () => {
+          reject(new Error('Erro ao carregar a imagem'));
+        };
+
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Redimensionar se for muito grande (max 1920px)
+          const maxSize = 1920;
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height / width) * maxSize;
+              width = maxSize;
+            } else {
+              width = (width / height) * maxSize;
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Erro ao processar a imagem'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Comprimir para JPEG com qualidade 0.8
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(compressedDataUrl);
+        };
+
+        img.src = e.target?.result as string;
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+
+    if (files.length === 0) return;
 
     if (photoPreviews.length + files.length > 3) {
       toast.error('Limite máximo de 3 fotos atingido.');
       return;
     }
 
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreviews(prev => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
+    // Validar tamanho dos arquivos (max 10MB por arquivo)
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    for (const file of files) {
+      if (file.size > maxFileSize) {
+        toast.error(`A foto "${file.name}" é muito grande. Máximo: 10MB`);
+        return;
+      }
+    }
+
+    const loadingToast = toast.loading('Processando foto(s)...');
+
+    try {
+      const compressedImages: string[] = [];
+
+      for (const file of files) {
+        try {
+          const compressed = await compressImage(file);
+          compressedImages.push(compressed);
+        } catch (error) {
+          console.error('Erro ao comprimir imagem:', error);
+          toast.error('Erro ao processar uma das fotos', { id: loadingToast });
+          return;
+        }
+      }
+
+      setPhotoPreviews(prev => [...prev, ...compressedImages]);
+      toast.success(`${files.length} foto(s) adicionada(s)`, { id: loadingToast });
+    } catch (error) {
+      console.error('Erro ao processar fotos:', error);
+      toast.error('Erro ao adicionar fotos', { id: loadingToast });
+    }
 
     // Reset inputs to allow selecting the same file again if removed
     if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -240,7 +321,6 @@ export default function TicketPage() {
                 type="file"
                 accept="image/*"
                 capture="environment"
-                multiple
                 className="hidden"
                 ref={cameraInputRef}
                 onChange={handlePhotoChange}
