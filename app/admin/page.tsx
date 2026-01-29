@@ -111,16 +111,25 @@ export default function AdminPage() {
         // Não carregar todos os tickets na tela inicial para evitar lentidão
         setTickets([]);
       }
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar dados. Tente novamente.');
     } finally {
+      // SEMPRE desligar loading, mesmo com erro
       setIsLoadingData(false);
       setInitialLoadComplete(true);
     }
   };
 
   const handleUpdateTicketStatus = async (ticketId: string, status: Ticket['status']) => {
-    await dataService.updateTicket(ticketId, { status });
-    await loadData();
-    toast.success('Status atualizado!');
+    try {
+      await dataService.updateTicket(ticketId, { status });
+      await loadData();
+      toast.success('Status atualizado!');
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error('Erro ao atualizar status do chamado');
+    }
   };
 
   const handleRegisterExternalId = async (ticketId: string) => {
@@ -128,14 +137,19 @@ export default function AdminPage() {
       toast.error('Informe o número do chamado da construtora');
       return;
     }
-    await dataService.updateTicket(ticketId, {
-      externalTicketId: externalIdInput,
-      isRegistered: true
-    });
-    setRegisteringTicketId(null);
-    setExternalIdInput('');
-    await loadData();
-    toast.success('Chamado registrado!');
+    try {
+      await dataService.updateTicket(ticketId, {
+        externalTicketId: externalIdInput,
+        isRegistered: true
+      });
+      setRegisteringTicketId(null);
+      setExternalIdInput('');
+      await loadData();
+      toast.success('Chamado registrado!');
+    } catch (error) {
+      console.error('Erro ao registrar chamado:', error);
+      toast.error('Erro ao registrar número do chamado');
+    }
   };
 
   const handleSaveTicketNumber = async (ticketId: string) => {
@@ -143,21 +157,31 @@ export default function AdminPage() {
       toast.error('Informe o número do chamado');
       return;
     }
-    await dataService.updateTicket(ticketId, {
-      externalTicketId: editingTicketNumberValue,
-      isRegistered: true
-    });
-    setEditingTicketNumberId(null);
-    setEditingTicketNumberValue('');
-    await loadData();
-    toast.success('Número atualizado!');
+    try {
+      await dataService.updateTicket(ticketId, {
+        externalTicketId: editingTicketNumberValue,
+        isRegistered: true
+      });
+      setEditingTicketNumberId(null);
+      setEditingTicketNumberValue('');
+      await loadData();
+      toast.success('Número atualizado!');
+    } catch (error) {
+      console.error('Erro ao atualizar número:', error);
+      toast.error('Erro ao atualizar número do chamado');
+    }
   };
 
   const handleDeleteBuilding = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este prédio?')) {
-      await dataService.deleteBuilding(id);
-      await loadData();
-      toast.success('Prédio excluído!');
+      try {
+        await dataService.deleteBuilding(id);
+        await loadData();
+        toast.success('Prédio excluído!');
+      } catch (error) {
+        console.error('Erro ao excluir prédio:', error);
+        toast.error('Erro ao excluir prédio');
+      }
     }
   };
   const handleDeleteUser = async (userId: string) => {
@@ -166,9 +190,14 @@ export default function AdminPage() {
       return;
     }
     if (confirm('Tem certeza que deseja excluir este usuário?')) {
-      await dataService.deleteUser(userId);
-      await loadData();
-      toast.success('Usuário excluído!');
+      try {
+        await dataService.deleteUser(userId);
+        await loadData();
+        toast.success('Usuário excluído!');
+      } catch (error) {
+        console.error('Erro ao excluir usuário:', error);
+        toast.error('Erro ao excluir usuário');
+      }
     }
   };
 
