@@ -1300,8 +1300,34 @@ export default function ChamadosPage() {
                         )}
                       </td>
 
-                      <td className="px-3 py-4 text-center text-muted-foreground text-xs border-x border-border/50">
-                        {formatDate(ticket.createdAt)}
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Input
+                            type="date"
+                            value={batchEdits.get(ticket.id)?.createdAt || ticket.createdAt || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                responsible: ticket.responsible,
+                                createdAt: ticket.createdAt,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, createdAt: e.target.value || undefined });
+                              setBatchEdits(newEdits);
+                            }}
+                            className="h-8 text-xs text-center font-medium text-muted-foreground"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-xs">
+                            {formatDate(ticket.createdAt)}
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>

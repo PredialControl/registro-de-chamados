@@ -358,6 +358,7 @@ export const dataService = {
         if (updates.externalTicketId) dbUpdates.external_ticket_id = updates.externalTicketId;
         if (updates.isRegistered !== undefined) dbUpdates.is_registered = updates.isRegistered;
         if (updates.responsible !== undefined) dbUpdates.responsible = updates.responsible;
+        if (updates.createdAt !== undefined) dbUpdates.created_at = updates.createdAt;
 
         console.log('🔄 Atualizando ticket no banco:', { ticketId, dbUpdates });
 
