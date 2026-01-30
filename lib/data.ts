@@ -537,9 +537,9 @@ export const dataService = {
         return result;
     },
 
-    // Buscar tickets por prédio específico (para admin) - OTIMIZADO com limite inicial e lotes para evitar timeout
-    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false, initialLimit: number = 1000): Promise<Ticket[]> => {
-        console.log(`🔍 Buscando tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}, Limite inicial: ${initialLimit}`);
+    // Buscar tickets por prédio específico (para admin) - CARREGA TODOS OS TICKETS em lotes
+    getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false, initialLimit: number = 999999): Promise<Ticket[]> => {
+        console.log(`🔍 Buscando TODOS os tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}`);
 
         const startTime = Date.now();
 
@@ -550,17 +550,16 @@ export const dataService = {
             let offset = 0;
             let hasMore = true;
 
-            while (hasMore && allTickets.length < initialLimit) {
-                const currentBatchSize = Math.min(batchSize, initialLimit - allTickets.length);
-
-                console.log(`📦 Buscando lote ${Math.floor(offset / batchSize) + 1}: offset ${offset}, limit ${currentBatchSize}`);
+            // REMOVIDO O LIMITE: Agora carrega TODOS os tickets até acabar
+            while (hasMore) {
+                console.log(`📦 Buscando lote ${Math.floor(offset / batchSize) + 1}: offset ${offset}, limit ${batchSize}`);
 
                 let query = supabase
                     .from('tickets')
                     .select('*', { count: offset === 0 ? 'exact' : undefined }) // Contagem apenas no primeiro lote
                     .eq('building_id', buildingId)
                     .order('id', { ascending: false })
-                    .range(offset, offset + currentBatchSize - 1);
+                    .range(offset, offset + batchSize - 1);
 
                 if (onlyPending) {
                     query = query.or('is_registered.is.null,is_registered.eq.false');
@@ -580,13 +579,13 @@ export const dataService = {
 
                 if (data && data.length > 0) {
                     allTickets = [...allTickets, ...data];
-                    offset += currentBatchSize;
-                    hasMore = data.length === currentBatchSize;
+                    offset += batchSize;
+                    hasMore = data.length === batchSize;
 
                     console.log(`   ✅ Lote recebido: ${data.length} tickets | Total acumulado: ${allTickets.length}`);
 
                     // Logar contagem total apenas no primeiro lote
-                    if (offset === currentBatchSize && count) {
+                    if (offset === batchSize && count) {
                         console.log(`   📊 Total de tickets no banco: ${count}`);
                     }
                 } else {

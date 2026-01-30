@@ -124,9 +124,9 @@ export default function ChamadosPage() {
 
     setIsLoadingData(true);
     try {
-      console.log(`🔄 Carregando tickets do prédio: ${selectedBuilding}`);
-      // OTIMIZAÇÃO: Buscar até 1000 tickets em lotes de 50 (otimizado para evitar timeout)
-      const buildingTickets = await dataService.getTicketsByBuilding(selectedBuilding, false, 1000);
+      console.log(`🔄 Carregando TODOS os tickets do prédio: ${selectedBuilding}`);
+      // Buscar TODOS os tickets em lotes de 50 (sem limite)
+      const buildingTickets = await dataService.getTicketsByBuilding(selectedBuilding, false);
       setTickets(buildingTickets);
 
       const buildingName = buildings.find(b => b.id === selectedBuilding)?.name || 'Prédio';
