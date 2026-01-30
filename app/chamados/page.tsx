@@ -52,6 +52,8 @@ export default function ChamadosPage() {
   const [selectedTicketForGallery, setSelectedTicketForGallery] = useState<Ticket | null>(null);
   const [editingTicketNumberId, setEditingTicketNumberId] = useState<string | null>(null);
   const [editingTicketNumberValue, setEditingTicketNumberValue] = useState('');
+  const [editingCreatedAtId, setEditingCreatedAtId] = useState<string | null>(null);
+  const [editingCreatedAtValue, setEditingCreatedAtValue] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>('todos');
   const [selectedMonth, setSelectedMonth] = useState<string>('todos');
   const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
@@ -505,6 +507,26 @@ export default function ChamadosPage() {
       toast.success('Número atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar número.');
+    }
+  };
+
+  const handleSaveCreatedAt = async (ticketId: string) => {
+    if (!editingCreatedAtValue.trim()) {
+      toast.error('Informe a data de abertura');
+      return;
+    }
+    try {
+      await dataService.updateTicket(ticketId, {
+        createdAt: editingCreatedAtValue
+      });
+      setEditingCreatedAtId(null);
+      setEditingCreatedAtValue('');
+      if (selectedBuilding !== 'todos') {
+        await loadTicketsForBuilding();
+      }
+      toast.success('Data de abertura atualizada!');
+    } catch (error) {
+      toast.error('Erro ao atualizar data de abertura.');
     }
   };
 
@@ -1300,33 +1322,58 @@ export default function ChamadosPage() {
                         )}
                       </td>
 
-                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
-                        {isAdmin ? (
-                          <Input
-                            type="date"
-                            value={batchEdits.get(ticket.id)?.createdAt || ticket.createdAt || ''}
-                            onChange={(e) => {
-                              const currentEdit = batchEdits.get(ticket.id) || {
-                                buildingId: ticket.buildingId,
-                                location: ticket.location,
-                                description: ticket.description,
-                                status: ticket.status,
-                                deadline: ticket.deadline,
-                                reprogrammingDate: ticket.reprogrammingDate,
-                                constructorReturn: ticket.constructorReturn,
-                                responsible: ticket.responsible,
-                                createdAt: ticket.createdAt,
-                              };
-                              const newEdits = new Map(batchEdits);
-                              newEdits.set(ticket.id, { ...currentEdit, createdAt: e.target.value || undefined });
-                              setBatchEdits(newEdits);
-                            }}
-                            className="h-8 text-xs text-center font-medium text-muted-foreground"
-                          />
+                      <td className="px-3 py-4 text-center text-muted-foreground text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {editingCreatedAtId === ticket.id ? (
+                          <div className="flex items-center gap-1 justify-center">
+                            <Input
+                              type="date"
+                              value={editingCreatedAtValue}
+                              onChange={e => setEditingCreatedAtValue(e.target.value)}
+                              className="h-7 text-xs w-32 px-1.5"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveCreatedAt(ticket.id);
+                                if (e.key === 'Escape') {
+                                  setEditingCreatedAtId(null);
+                                  setEditingCreatedAtValue('');
+                                }
+                              }}
+                            />
+                            <Button
+                              size="icon-sm"
+                              onClick={() => handleSaveCreatedAt(ticket.id)}
+                              className="h-7 w-7 bg-green-600 hover:bg-green-700"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingCreatedAtId(null);
+                                setEditingCreatedAtValue('');
+                              }}
+                              className="h-7 w-7"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         ) : (
-                          <span className="text-muted-foreground text-xs">
-                            {formatDate(ticket.createdAt)}
-                          </span>
+                          <div className="flex items-center gap-1 justify-center">
+                            <span>{formatDate(ticket.createdAt)}</span>
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCreatedAtId(ticket.id);
+                                  setEditingCreatedAtValue(ticket.createdAt || '');
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
 
