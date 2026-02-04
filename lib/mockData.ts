@@ -34,6 +34,7 @@ export interface Ticket {
     reprogrammingDate?: string;
     reprogrammingHistory?: ReprogrammingEntry[];
     constructorReturn?: string;
+    engineeringOpinion?: string;
     externalTicketId?: string;
     isRegistered?: boolean;
     responsible?: 'Condomínio' | 'Construtora';

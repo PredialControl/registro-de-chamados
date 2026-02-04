@@ -335,6 +335,7 @@ export default function ChamadosPage() {
         'Prazo',
         'Reprogramação',
         'Retorno Construtora',
+        'Parecer Engenharia',
         'Responsável',
         'Fotos'
       ]);
@@ -364,6 +365,7 @@ export default function ChamadosPage() {
           ticket.deadline ? formatDate(ticket.deadline) : '--',
           ticket.reprogrammingDate ? formatDate(ticket.reprogrammingDate) : '--',
           ticket.constructorReturn || '--',
+          ticket.engineeringOpinion || '--',
           ticket.responsible || 'Construtora',
           photoLinks
         ]);
@@ -398,13 +400,14 @@ export default function ChamadosPage() {
       chamadosSheet.getColumn(7).width = 12;
       chamadosSheet.getColumn(8).width = 15;
       chamadosSheet.getColumn(9).width = 40;
-      chamadosSheet.getColumn(10).width = 15;
-      chamadosSheet.getColumn(11).width = 80;
+      chamadosSheet.getColumn(10).width = 40;
+      chamadosSheet.getColumn(11).width = 15;
+      chamadosSheet.getColumn(12).width = 80;
 
       // Filtros automáticos
       chamadosSheet.autoFilter = {
         from: { row: 1, column: 1 },
-        to: { row: 1, column: 11 }
+        to: { row: 1, column: 12 }
       };
 
       // Congelar primeira linha
@@ -1287,6 +1290,7 @@ export default function ChamadosPage() {
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider text-blue-600 dark:text-blue-400 border-x border-border/50">Prazo</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider text-orange-600 dark:text-orange-400 border-x border-border/50">Reprogramação</th>
                   <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Retorno</th>
+                  <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50 text-purple-600 dark:text-purple-400">Parecer Engenharia</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Responsável</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Foto</th>
                   {isAdmin && <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Ações</th>}
@@ -1387,6 +1391,7 @@ export default function ChamadosPage() {
                                 deadline: ticket.deadline,
                                 reprogrammingDate: ticket.reprogrammingDate,
                                 constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
                                 responsible: ticket.responsible,
                               };
                               const newEdits = new Map(batchEdits);
@@ -1414,6 +1419,7 @@ export default function ChamadosPage() {
                                 deadline: ticket.deadline,
                                 reprogrammingDate: ticket.reprogrammingDate,
                                 constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
                                 responsible: ticket.responsible,
                               };
                               const newEdits = new Map(batchEdits);
@@ -1443,6 +1449,7 @@ export default function ChamadosPage() {
                                 deadline: ticket.deadline,
                                 reprogrammingDate: ticket.reprogrammingDate,
                                 constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
                                 responsible: ticket.responsible,
                               };
                               const newEdits = new Map(batchEdits);
@@ -1543,6 +1550,7 @@ export default function ChamadosPage() {
                                   deadline: ticket.deadline,
                                   reprogrammingDate: ticket.reprogrammingDate,
                                   constructorReturn: ticket.constructorReturn,
+                                  engineeringOpinion: ticket.engineeringOpinion,
                                   responsible: ticket.responsible,
                                 };
                                 const newEdits = new Map(batchEdits);
@@ -1676,6 +1684,7 @@ export default function ChamadosPage() {
                                 deadline: ticket.deadline,
                                 reprogrammingDate: ticket.reprogrammingDate,
                                 constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
                                 responsible: ticket.responsible,
                               };
                               const newEdits = new Map(batchEdits);
@@ -1694,6 +1703,38 @@ export default function ChamadosPage() {
                         )}
                       </td>
 
+                      <td className="px-3 py-4 text-muted-foreground text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Textarea
+                            value={batchEdits.get(ticket.id)?.engineeringOpinion || ticket.engineeringOpinion || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, engineeringOpinion: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
+                            placeholder="Parecer da engenharia..."
+                            className="min-h-[60px] text-xs resize-none"
+                          />
+                        ) : (
+                          <div className="max-w-[250px] text-xs">
+                            <div className="truncate cursor-help" title={ticket.engineeringOpinion || ''}>
+                              {ticket.engineeringOpinion || '--'}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
                         {isAdmin ? (
                           <Select
@@ -1707,6 +1748,7 @@ export default function ChamadosPage() {
                                 deadline: ticket.deadline,
                                 reprogrammingDate: ticket.reprogrammingDate,
                                 constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
                                 responsible: ticket.responsible,
                               };
                               const newEdits = new Map(batchEdits);
