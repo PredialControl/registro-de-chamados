@@ -7,7 +7,7 @@ import { dataService } from '@/lib/data';
 import { Ticket, Building, User } from '@/lib/mockData';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon, Edit2, FileSpreadsheet } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -236,58 +236,205 @@ export default function ChamadosPage() {
     toast.success(`Foto ${index !== undefined ? index + 1 : ''} baixada com sucesso!`);
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     try {
-      // Preparar dados para exportação
-      const exportData = filteredTickets.map(ticket => {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Sistema de Chamados';
+      workbook.created = new Date();
+
+      // === ABA 1: DASHBOARD ===
+      const dashboard = workbook.addWorksheet('Dashboard', {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 3 }]
+      });
+
+      // Título principal
+      dashboard.mergeCells('A1:F1');
+      const titleCell = dashboard.getCell('A1');
+      titleCell.value = '📊 RELATÓRIO DE CHAMADOS';
+      titleCell.font = { size: 20, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      dashboard.getRow(1).height = 35;
+
+      // Subtítulo com data
+      dashboard.mergeCells('A2:F2');
+      const subtitleCell = dashboard.getCell('A2');
+      const buildingName = selectedBuilding === 'todos'
+        ? 'Todos os Prédios'
+        : buildings.find(b => b.id === selectedBuilding)?.name || 'Chamados';
+      subtitleCell.value = `${buildingName} - Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`;
+      subtitleCell.font = { size: 12, italic: true };
+      subtitleCell.alignment = { horizontal: 'center' };
+      dashboard.getRow(2).height = 20;
+
+      dashboard.addRow([]);
+
+      // Métricas principais (cards)
+      const statusCounts = filteredTickets.reduce((acc, ticket) => {
+        acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      dashboard.addRow(['RESUMO GERAL']).font = { size: 14, bold: true };
+      dashboard.mergeCells(`A${dashboard.rowCount}:F${dashboard.rowCount}`);
+      dashboard.getCell(`A${dashboard.rowCount}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+
+      dashboard.addRow([]);
+
+      const metricsRow = dashboard.addRow(['Total de Chamados', filteredTickets.length, '', 'Prédios', new Set(filteredTickets.map(t => t.buildingId)).size]);
+      metricsRow.font = { bold: true };
+      metricsRow.eachCell((cell, colNumber) => {
+        if (colNumber % 3 === 2) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+          cell.font = { size: 16, bold: true, color: { argb: 'FF7C3AED' } };
+        }
+      });
+
+      dashboard.addRow([]);
+      dashboard.addRow(['DISTRIBUIÇÃO POR STATUS']).font = { size: 14, bold: true };
+      dashboard.mergeCells(`A${dashboard.rowCount}:F${dashboard.rowCount}`);
+      dashboard.getCell(`A${dashboard.rowCount}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
+
+      dashboard.addRow([]);
+      dashboard.addRow(['Status', 'Quantidade', 'Percentual']).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      dashboard.getRow(dashboard.rowCount).eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+        cell.alignment = { horizontal: 'center' };
+      });
+
+      Object.entries(STATUS_CONFIG).forEach(([status, config]) => {
+        const count = statusCounts[status] || 0;
+        const percentage = filteredTickets.length > 0 ? ((count / filteredTickets.length) * 100).toFixed(1) : '0.0';
+        const row = dashboard.addRow([config.label, count, `${percentage}%`]);
+        row.getCell(2).alignment = { horizontal: 'center' };
+        row.getCell(3).alignment = { horizontal: 'center' };
+        row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: config.chartColor.replace('#', 'FF') } };
+        row.getCell(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      });
+
+      // Ajustar larguras
+      dashboard.getColumn(1).width = 25;
+      dashboard.getColumn(2).width = 15;
+      dashboard.getColumn(3).width = 15;
+      dashboard.getColumn(4).width = 25;
+      dashboard.getColumn(5).width = 15;
+      dashboard.getColumn(6).width = 15;
+
+      // === ABA 2: CHAMADOS (Dados detalhados) ===
+      const chamadosSheet = workbook.addWorksheet('Chamados Detalhados');
+
+      // Cabeçalho
+      const headerRow = chamadosSheet.addRow([
+        'Nº Chamado',
+        'Prédio',
+        'Local',
+        'Descrição',
+        'Situação',
+        'Abertura',
+        'Prazo',
+        'Reprogramação',
+        'Retorno Construtora',
+        'Responsável',
+        'Fotos'
+      ]);
+
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+      headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      headerRow.height = 30;
+
+      // Dados
+      filteredTickets.forEach((ticket, index) => {
         const building = buildings.find(b => b.id === ticket.buildingId);
         const statusLabel = STATUS_CONFIG[ticket.status]?.label || ticket.status;
 
-        return {
-          'Nº Chamado': ticket.externalTicketId || 'SEM Nº',
-          'Prédio': building?.name || 'N/A',
-          'Local': ticket.location || '',
-          'Descrição': ticket.description || '',
-          'Situação': statusLabel,
-          'Abertura': ticket.createdAt ? formatDate(ticket.createdAt) : '--',
-          'Prazo': ticket.deadline ? formatDate(ticket.deadline) : '--',
-          'Reprogramação': ticket.reprogrammingDate ? formatDate(ticket.reprogrammingDate) : '--',
-          'Retorno Construtora': ticket.constructorReturn || '--',
-          'Responsável': ticket.responsible || 'Construtora',
-        };
+        // Links das fotos
+        const photoLinks = ticket.photoUrls && ticket.photoUrls.length > 0
+          ? ticket.photoUrls.map((url, i) => `Foto ${i + 1}: ${url}`).join('\n')
+          : 'Sem fotos';
+
+        const row = chamadosSheet.addRow([
+          ticket.externalTicketId || 'SEM Nº',
+          building?.name || 'N/A',
+          ticket.location || '',
+          ticket.description || '',
+          statusLabel,
+          ticket.createdAt ? formatDate(ticket.createdAt) : '--',
+          ticket.deadline ? formatDate(ticket.deadline) : '--',
+          ticket.reprogrammingDate ? formatDate(ticket.reprogrammingDate) : '--',
+          ticket.constructorReturn || '--',
+          ticket.responsible || 'Construtora',
+          photoLinks
+        ]);
+
+        // Zebrar linhas
+        if (index % 2 === 0) {
+          row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+        }
+
+        // Colorir coluna de status
+        const statusColor = STATUS_CONFIG[ticket.status]?.chartColor.replace('#', 'FF') || 'FFCCCCCC';
+        row.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } };
+        row.getCell(5).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        row.getCell(5).alignment = { horizontal: 'center' };
+
+        // Wrap text para descrição e retorno
+        row.getCell(4).alignment = { wrapText: true };
+        row.getCell(9).alignment = { wrapText: true };
+        row.getCell(11).alignment = { wrapText: true };
       });
 
-      // Criar workbook
-      const ws = XLSX.utils.json_to_sheet(exportData);
+      // Largura das colunas
+      chamadosSheet.getColumn(1).width = 15;
+      chamadosSheet.getColumn(2).width = 25;
+      chamadosSheet.getColumn(3).width = 20;
+      chamadosSheet.getColumn(4).width = 50;
+      chamadosSheet.getColumn(5).width = 18;
+      chamadosSheet.getColumn(6).width = 12;
+      chamadosSheet.getColumn(7).width = 12;
+      chamadosSheet.getColumn(8).width = 15;
+      chamadosSheet.getColumn(9).width = 40;
+      chamadosSheet.getColumn(10).width = 15;
+      chamadosSheet.getColumn(11).width = 80;
 
-      // Definir largura das colunas
-      const colWidths = [
-        { wch: 15 }, // Nº Chamado
-        { wch: 25 }, // Prédio
-        { wch: 20 }, // Local
-        { wch: 50 }, // Descrição
-        { wch: 18 }, // Situação
-        { wch: 12 }, // Abertura
-        { wch: 12 }, // Prazo
-        { wch: 15 }, // Reprogramação
-        { wch: 40 }, // Retorno
-        { wch: 15 }, // Responsável
+      // Filtros automáticos
+      chamadosSheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: 11 }
+      };
+
+      // Congelar primeira linha
+      chamadosSheet.views = [
+        { state: 'frozen', ySplit: 1 }
       ];
-      ws['!cols'] = colWidths;
 
-      // Criar workbook e adicionar worksheet
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Chamados');
+      // Bordas em todas as células com dados
+      chamadosSheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+            left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+            bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+            right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+          };
+        });
+      });
 
-      // Gerar nome do arquivo
-      const buildingName = selectedBuilding === 'todos'
-        ? 'Todos_Predios'
-        : buildings.find(b => b.id === selectedBuilding)?.name.replace(/\s/g, '_') || 'Chamados';
+      // Gerar arquivo
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
       const date = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-      const fileName = `Chamados_${buildingName}_${date}.xlsx`;
+      const fileName = `Chamados_${buildingName.replace(/\s/g, '_')}_${date}.xlsx`;
+      link.download = fileName;
 
-      // Fazer download
-      XLSX.writeFile(wb, fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       toast.success(`Planilha "${fileName}" baixada com sucesso!`);
     } catch (error) {
