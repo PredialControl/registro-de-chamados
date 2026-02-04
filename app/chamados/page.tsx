@@ -303,7 +303,8 @@ export default function ChamadosPage() {
       });
 
       Object.entries(STATUS_CONFIG).forEach(([status, config]) => {
-        const count = statusCounts[status] || 0;
+        // "Itens Apontados" mostra o total de chamados
+        const count = status === 'itens_apontados' ? filteredTickets.length : (statusCounts[status] || 0);
         const percentage = filteredTickets.length > 0 ? ((count / filteredTickets.length) * 100).toFixed(1) : '0.0';
         const row = dashboard.addRow([config.label, count, `${percentage}%`]);
         row.getCell(2).alignment = { horizontal: 'center' };
@@ -367,6 +368,9 @@ export default function ChamadosPage() {
           photoLinks
         ]);
 
+        // Altura fixa pequena para todas as linhas
+        row.height = 20;
+
         // Zebrar linhas
         if (index % 2 === 0) {
           row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
@@ -378,10 +382,10 @@ export default function ChamadosPage() {
         row.getCell(5).font = { bold: true, color: { argb: 'FFFFFFFF' } };
         row.getCell(5).alignment = { horizontal: 'center' };
 
-        // Wrap text para descrição e retorno
-        row.getCell(4).alignment = { wrapText: true };
-        row.getCell(9).alignment = { wrapText: true };
-        row.getCell(11).alignment = { wrapText: true };
+        // Alinhamento vertical centralizado (sem wrap text)
+        row.eachCell((cell) => {
+          cell.alignment = { vertical: 'middle', horizontal: cell.col === 5 ? 'center' : 'left' };
+        });
       });
 
       // Largura das colunas
