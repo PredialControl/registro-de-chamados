@@ -24,6 +24,7 @@ export default function TicketPage() {
   const [selectedBuilding, setSelectedBuilding] = useState<string>('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
+  const [responsible, setResponsible] = useState<'Construtora' | 'Condomínio'>('Construtora');
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -77,8 +78,8 @@ export default function TicketPage() {
             let width = img.width;
             let height = img.height;
 
-            // Redimensionar se for muito grande (max 1920px)
-            const maxSize = 1920;
+            // Redimensionar se for muito grande (max 1280px - otimizado para mobile)
+            const maxSize = 1280;
             if (width > maxSize || height > maxSize) {
               if (width > height) {
                 height = (height / width) * maxSize;
@@ -102,10 +103,10 @@ export default function TicketPage() {
 
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Comprimir para JPEG com qualidade 0.8
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            // Comprimir para WebP com qualidade 0.7 (reduz 60-70% do tamanho)
+            const compressedDataUrl = canvas.toDataURL('image/webp', 0.7);
             const compressedSize = (compressedDataUrl.length / 1024 / 1024).toFixed(2);
-            console.log('✅ Imagem comprimida. Tamanho final:', compressedSize + 'MB');
+            console.log('✅ Imagem comprimida em WebP. Tamanho final:', compressedSize + 'MB');
 
             resolve(compressedDataUrl);
           } catch (error) {
@@ -204,6 +205,7 @@ export default function TicketPage() {
         location,
         description,
         photoUrls: photoPreviews,
+        responsible,
       });
 
       console.log('✅ Resultado:', result);
@@ -224,6 +226,7 @@ export default function TicketPage() {
       if (buildings.length > 1) setSelectedBuilding('');
       setLocation('');
       setDescription('');
+      setResponsible('Construtora');
       setPhotoPreviews([]);
       if (cameraInputRef.current) cameraInputRef.current.value = '';
       if (galleryInputRef.current) galleryInputRef.current.value = '';
@@ -297,6 +300,22 @@ export default function TicketPage() {
                 onChange={e => setDescription(e.target.value)}
               />
             </div>
+
+            {/* Responsible (apenas para admin) */}
+            {user?.role === 'admin' && (
+              <div className="space-y-2">
+                <Label htmlFor="responsible">Responsável</Label>
+                <Select value={responsible} onValueChange={(value) => setResponsible(value as 'Construtora' | 'Condomínio')}>
+                  <SelectTrigger id="responsible">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Construtora">Construtora</SelectItem>
+                    <SelectItem value="Condomínio">Condomínio</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Photo Upload */}
             <div className="space-y-4">
