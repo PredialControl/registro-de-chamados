@@ -220,6 +220,27 @@ export default function AdminPage() {
     toast.success('Baixando todas as fotos...');
   };
 
+  const handleDeleteTicket = async (ticketId: string, ticketNumber?: string) => {
+    const ticketLabel = ticketNumber ? `Nº ${ticketNumber}` : 'este chamado';
+
+    if (!confirm(`⚠️ ATENÇÃO: Deseja realmente EXCLUIR ${ticketLabel}?\n\nEsta ação NÃO pode ser desfeita!`)) {
+      return;
+    }
+
+    try {
+      await dataService.deleteTicket(ticketId);
+
+      // Remover do estado local
+      setTickets(prev => prev.filter(t => t.id !== ticketId));
+
+      toast.success('Chamado excluído com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao excluir chamado:', error);
+      const errorMessage = error?.message || 'Erro desconhecido ao excluir chamado.';
+      toast.error(errorMessage);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     if (!dateString) return '--';
     const date = new Date(dateString);
@@ -648,6 +669,15 @@ export default function AdminPage() {
                                       <SelectItem value="f_indevido">F.INDEVIDO</SelectItem>
                                     </SelectContent>
                                   </Select>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteTicket(ticket.id, ticket.externalTicketId)}
+                                    className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    title="Excluir chamado"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
                                 </div>
                               </td>
                             </tr>
