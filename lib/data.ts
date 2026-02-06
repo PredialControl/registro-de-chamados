@@ -301,7 +301,8 @@ export const dataService = {
                     location: ticketData.location,
                     description: ticketData.description,
                     photo_urls: ticketData.photoUrls,
-                    status: 'aguardando_vistoria'
+                    status: 'aguardando_vistoria',
+                    responsible: ticketData.responsible || 'Construtora'
                 })
                 .select()
                 .single();
