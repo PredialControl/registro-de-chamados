@@ -777,6 +777,7 @@ export default function ChamadosPage() {
 
   const chartData = Object.entries(STATUS_CONFIG)
     .map(([key, config]) => ({
+      key: key, // Adicionar key para mapear de volta ao clicar
       name: config.label,
       value: ticketsByStatus[key as keyof typeof ticketsByStatus],
       color: config.chartColor
@@ -1020,13 +1021,34 @@ export default function ChamadosPage() {
                         outerRadius={120}
                         paddingAngle={5}
                         dataKey="value"
+                        onClick={(data) => {
+                          // Filtrar automaticamente pelo status clicado
+                          if (data && data.key) {
+                            setSelectedStatus(data.key as TicketStatus);
+                            toast.success(`Filtrando por: ${data.name}`);
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
                       >
                         {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                          <Cell key={`cell-${index}`} fill={entry.color} style={{ cursor: 'pointer' }} />
                         ))}
                       </Pie>
                       <RechartsTooltip />
-                      <Legend verticalAlign="bottom" height={50} iconSize={10} wrapperStyle={{ fontSize: '12px' }} />
+                      <Legend
+                        verticalAlign="bottom"
+                        height={50}
+                        iconSize={10}
+                        wrapperStyle={{ fontSize: '12px', cursor: 'pointer' }}
+                        onClick={(data) => {
+                          // Também permitir clicar na legenda
+                          const entry = chartData.find(e => e.name === data.value);
+                          if (entry && entry.key) {
+                            setSelectedStatus(entry.key as TicketStatus);
+                            toast.success(`Filtrando por: ${entry.name}`);
+                          }
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -1051,9 +1073,21 @@ export default function ChamadosPage() {
                       />
                       <YAxis tick={{ fontSize: 13 }} width={55} />
                       <RechartsTooltip />
-                      <Bar dataKey="value" radius={[10, 10, 0, 0]} barSize={80}>
+                      <Bar
+                        dataKey="value"
+                        radius={[10, 10, 0, 0]}
+                        barSize={80}
+                        onClick={(data) => {
+                          // Filtrar por responsável ao clicar na barra
+                          if (data && data.name) {
+                            setSelectedResponsible(data.name);
+                            toast.success(`Filtrando por: ${data.name}`);
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
                         {responsibleChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                          <Cell key={`cell-${index}`} fill={entry.color} style={{ cursor: 'pointer' }} />
                         ))}
                       </Bar>
                     </BarChart>
