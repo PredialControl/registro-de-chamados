@@ -1986,35 +1986,37 @@ export default function ChamadosPage() {
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                   </div>
-                ) : viewingTicketPhotos.length > 0 && (
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {viewingTicketPhotos.map((url, index) => (
-                      <div
-                        key={index}
-                        className="relative aspect-square rounded-md overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
-                        onClick={() => {
-                          // Criar ticket temporário com as fotos carregadas para a galeria
-                          const ticketWithPhotos = { ...viewingTicket, photoUrls: viewingTicketPhotos };
-                          setViewingTicket(null);
-                          setSelectedTicketForGallery(ticketWithPhotos);
-                        }}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={url}
-                          alt={`Evidência ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] text-center py-1">
-                          Foto {index + 1}
+                ) : viewingTicketPhotos.length > 0 ? (
+                  <>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {viewingTicketPhotos.map((url, index) => (
+                        <div
+                          key={index}
+                          className="relative aspect-square rounded-md overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                          onClick={() => {
+                            // Criar ticket temporário com as fotos carregadas para a galeria
+                            const ticketWithPhotos = { ...viewingTicket, photoUrls: viewingTicketPhotos };
+                            setViewingTicket(null);
+                            setSelectedTicketForGallery(ticketWithPhotos);
+                          }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt={`Evidência ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] text-center py-1">
+                            Foto {index + 1}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2 text-center">
-                    Clique em uma foto para ver todas em tamanho maior
-                  </p>
-                )}
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 text-center">
+                      Clique em uma foto para ver todas em tamanho maior
+                    </p>
+                  </>
+                ) : null}
               </div>
             </CardContent>
           </Card>
