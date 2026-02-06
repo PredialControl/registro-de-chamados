@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { dataService } from '@/lib/data';
 import { Ticket, Building, User } from '@/lib/mockData';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon, Edit2, FileSpreadsheet } from 'lucide-react';
+import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon, Edit2, FileSpreadsheet, Camera } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -1806,27 +1806,20 @@ export default function ChamadosPage() {
                       </td>
 
                       <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
-                        {ticket.photoUrls && ticket.photoUrls.length > 0 && (
-                          <div className="flex flex-col items-center gap-1">
-                            <div
-                              className="relative w-16 h-16 rounded-md overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all group"
-                              onClick={() => setSelectedTicketForGallery(ticket)}
-                              title={`Clique para ver as ${ticket.photoUrls.length} fotos`}
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={ticket.photoUrls[0]}
-                                alt="Preview"
-                                className="w-full h-full object-cover group-hover:opacity-75"
-                              />
-                              {ticket.photoUrls.length > 1 && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-[10px] font-bold">
-                                  +{ticket.photoUrls.length - 1}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                        {/* Fotos carregadas sob demanda - mostrar botão para ver */}
+                        <div className="flex flex-col items-center gap-1">
+                          <button
+                            className="relative w-16 h-16 rounded-md border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all flex items-center justify-center bg-muted hover:bg-muted/80"
+                            onClick={async () => {
+                              const photos = await dataService.getTicketPhotos(ticket.id);
+                              const ticketWithPhotos = { ...ticket, photoUrls: photos };
+                              setSelectedTicketForGallery(ticketWithPhotos);
+                            }}
+                            title="Clique para ver as fotos"
+                          >
+                            <Camera className="w-6 h-6 text-muted-foreground" />
+                          </button>
+                        </div>
                       </td>
 
                       {isAdmin && (
