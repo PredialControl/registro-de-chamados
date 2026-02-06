@@ -653,11 +653,16 @@ export default function ChamadosPage() {
         externalTicketId: editingTicketNumberValue,
         isRegistered: true
       });
+
+      // Atualizar apenas o ticket específico no estado (sem recarregar tudo)
+      setTickets(prev => prev.map(t =>
+        t.id === ticketId
+          ? { ...t, externalTicketId: editingTicketNumberValue, isRegistered: true }
+          : t
+      ));
+
       setEditingTicketNumberId(null);
       setEditingTicketNumberValue('');
-      if (selectedBuilding !== 'todos') {
-        await loadTicketsForBuilding();
-      }
       toast.success('Número atualizado!');
     } catch (error) {
       toast.error('Erro ao atualizar número.');
@@ -673,11 +678,16 @@ export default function ChamadosPage() {
       await dataService.updateTicket(ticketId, {
         createdAt: editingCreatedAtValue
       });
+
+      // Atualizar apenas o ticket específico no estado (sem recarregar tudo)
+      setTickets(prev => prev.map(t =>
+        t.id === ticketId
+          ? { ...t, createdAt: editingCreatedAtValue }
+          : t
+      ));
+
       setEditingCreatedAtId(null);
       setEditingCreatedAtValue('');
-      if (selectedBuilding !== 'todos') {
-        await loadTicketsForBuilding();
-      }
       toast.success('Data de abertura atualizada!');
     } catch (error) {
       toast.error('Erro ao atualizar data de abertura.');
