@@ -765,6 +765,18 @@ export default function ChamadosPage() {
     return () => clearTimeout(timer);
   }, [selectedStatus, selectedBuilding, selectedDate, selectedMonth, searchTicketNumber, searchKeyword, selectedResponsible]);
 
+  // Contadores para o GRÁFICO (sempre todos os tickets, sem filtro)
+  const allTicketsByStatus = {
+    todos: tickets.length,
+    itens_apontados: tickets.filter(t => t.status === 'itens_apontados').length,
+    em_andamento: tickets.filter(t => t.status === 'em_andamento').length,
+    improcedente: tickets.filter(t => t.status === 'improcedente').length,
+    aguardando_vistoria: tickets.filter(t => t.status === 'aguardando_vistoria').length,
+    concluido: tickets.filter(t => t.status === 'concluido').length,
+    f_indevido: tickets.filter(t => t.status === 'f_indevido').length,
+  };
+
+  // Contadores para os FILTROS da tabela (tickets filtrados)
   const ticketsByStatus = {
     todos: filteredTickets.length,
     itens_apontados: filteredTickets.filter(t => t.status === 'itens_apontados').length,
@@ -775,30 +787,32 @@ export default function ChamadosPage() {
     f_indevido: filteredTickets.filter(t => t.status === 'f_indevido').length,
   };
 
+  // Gráfico usa TODOS os tickets (sem filtro)
   const chartData = Object.entries(STATUS_CONFIG)
     .map(([key, config]) => ({
-      key: key, // Adicionar key para mapear de volta ao clicar
+      key: key,
       name: config.label,
-      value: ticketsByStatus[key as keyof typeof ticketsByStatus],
+      value: allTicketsByStatus[key as keyof typeof allTicketsByStatus], // Usar allTicketsByStatus
       color: config.chartColor
     }))
     .filter(item => item.value > 0);
 
-  // Dados por responsável (não definido = Construtora)
-  const ticketsByResponsible = {
-    construtora: filteredTickets.filter(t => !t.responsible || t.responsible === 'Construtora').length,
-    condominio: filteredTickets.filter(t => t.responsible === 'Condomínio').length,
+  // Dados por responsável para o GRÁFICO (sempre todos)
+  const allTicketsByResponsible = {
+    construtora: tickets.filter(t => !t.responsible || t.responsible === 'Construtora').length,
+    condominio: tickets.filter(t => t.responsible === 'Condomínio').length,
   };
 
+  // Gráfico de responsáveis usa TODOS os tickets
   const responsibleChartData = [
     {
       name: 'Construtora',
-      value: ticketsByResponsible.construtora,
+      value: allTicketsByResponsible.construtora,
       color: '#ef4444' // vermelho
     },
     {
       name: 'Condomínio',
-      value: ticketsByResponsible.condominio,
+      value: allTicketsByResponsible.condominio,
       color: '#3b82f6' // azul
     }
   ].filter(item => item.value > 0);
