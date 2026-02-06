@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, Trash2, Edit2, CheckCircle, Clock, AlertCircle, X, Save, ArrowLeft, Download, ExternalLink } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit2, CheckCircle, Clock, AlertCircle, X, Save, ArrowLeft, Download, ExternalLink, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ImportTickets } from '@/components/ImportTickets';
@@ -618,27 +618,20 @@ export default function AdminPage() {
                                 {ticket.deadline ? formatDate(ticket.deadline) : '--'}
                               </td>
                               <td className="px-3 py-4 text-center border-x border-border/50">
-                                {ticket.photoUrls && ticket.photoUrls.length > 0 && (
-                                  <div className="flex flex-col items-center gap-1">
-                                    <div
-                                      className="relative w-10 h-10 rounded overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all group"
-                                      onClick={() => setSelectedTicketForGallery(ticket)}
-                                      title={`Clique para ver as ${ticket.photoUrls.length} fotos`}
-                                    >
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img
-                                        src={ticket.photoUrls[0]}
-                                        alt="Preview"
-                                        className="w-full h-full object-cover group-hover:opacity-75"
-                                      />
-                                      {ticket.photoUrls.length > 1 && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-[8px] font-bold">
-                                          +{ticket.photoUrls.length - 1}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
+                                {/* Fotos carregadas sob demanda - mostrar botão para ver */}
+                                <div className="flex flex-col items-center gap-1">
+                                  <button
+                                    className="relative w-10 h-10 rounded border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all flex items-center justify-center bg-muted hover:bg-muted/80"
+                                    onClick={async () => {
+                                      const photos = await dataService.getTicketPhotos(ticket.id);
+                                      const ticketWithPhotos = { ...ticket, photoUrls: photos };
+                                      setSelectedTicketForGallery(ticketWithPhotos);
+                                    }}
+                                    title="Clique para ver as fotos"
+                                  >
+                                    <Camera className="w-4 h-4 text-muted-foreground" />
+                                  </button>
+                                </div>
                               </td>
                               <td className="px-3 py-4 text-center border-x border-border/50">
                                 <div className="flex justify-center gap-1">
