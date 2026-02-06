@@ -60,6 +60,8 @@ export default function ChamadosPage() {
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [selectedResponsible, setSelectedResponsible] = useState<string>('todos');
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
+  const [viewingTicketPhotos, setViewingTicketPhotos] = useState<string[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(50);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
@@ -93,6 +95,27 @@ export default function ChamadosPage() {
       loadTicketsForBuilding();
     }
   }, [selectedBuilding]);
+
+  // Carregar fotos quando abrir o modal de visualização
+  useEffect(() => {
+    const loadPhotos = async () => {
+      if (viewingTicket && viewingTicket.id) {
+        setLoadingPhotos(true);
+        try {
+          const photos = await dataService.getTicketPhotos(viewingTicket.id);
+          setViewingTicketPhotos(photos);
+        } catch (error) {
+          console.error('Erro ao carregar fotos:', error);
+          setViewingTicketPhotos([]);
+        } finally {
+          setLoadingPhotos(false);
+        }
+      } else {
+        setViewingTicketPhotos([]);
+      }
+    };
+    loadPhotos();
+  }, [viewingTicket?.id]);
 
   const loadBuildingsAndUsers = async () => {
     if (!user) return;
@@ -1954,17 +1977,26 @@ export default function ChamadosPage() {
               )}
 
               {/* Fotos */}
-              {viewingTicket.photoUrls && viewingTicket.photoUrls.length > 0 && (
-                <div>
-                  <label className="text-sm font-semibold text-foreground">Evidências ({viewingTicket.photoUrls.length} fotos)</label>
+              <div>
+                <label className="text-sm font-semibold text-foreground">
+                  Evidências
+                  {loadingPhotos ? ' (Carregando...)' : viewingTicketPhotos.length > 0 ? ` (${viewingTicketPhotos.length} fotos)` : ' (Nenhuma foto)'}
+                </label>
+                {loadingPhotos ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                  </div>
+                ) : viewingTicketPhotos.length > 0 && (
                   <div className="mt-2 grid grid-cols-3 gap-2">
-                    {viewingTicket.photoUrls.map((url, index) => (
+                    {viewingTicketPhotos.map((url, index) => (
                       <div
                         key={index}
                         className="relative aspect-square rounded-md overflow-hidden border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
                         onClick={() => {
+                          // Criar ticket temporário com as fotos carregadas para a galeria
+                          const ticketWithPhotos = { ...viewingTicket, photoUrls: viewingTicketPhotos };
                           setViewingTicket(null);
-                          setSelectedTicketForGallery(viewingTicket);
+                          setSelectedTicketForGallery(ticketWithPhotos);
                         }}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1982,8 +2014,8 @@ export default function ChamadosPage() {
                   <p className="text-xs text-muted-foreground mt-2 text-center">
                     Clique em uma foto para ver todas em tamanho maior
                   </p>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

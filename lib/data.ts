@@ -537,26 +537,28 @@ export const dataService = {
         return result;
     },
 
-    // Buscar tickets por prédio específico (para admin) - CARREGA TODOS OS TICKETS em lotes
+    // Buscar tickets por prédio - SEM FOTOS (muito mais rápido!)
     getTicketsByBuilding: async (buildingId: string, onlyPending: boolean = false, initialLimit: number = 999999): Promise<Ticket[]> => {
-        console.log(`🔍 Buscando TODOS os tickets - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}`);
+        console.log(`🔍 Buscando tickets SEM FOTOS - Prédio: ${buildingId}, Apenas pendentes: ${onlyPending}`);
 
         const startTime = Date.now();
 
         try {
-            // OTIMIZAÇÃO: Buscar em lotes de 50 tickets para evitar timeout (alguns prédios têm fotos muito pesadas)
-            const batchSize = 50;
+            // OTIMIZAÇÃO CRÍTICA: Buscar SEM photo_urls para reduzir 99% do tamanho da resposta
+            // Fotos serão carregadas sob demanda quando abrir o chamado
+            const batchSize = 200; // Aumentado de 50 para 200 já que sem fotos é muito mais leve
             let allTickets: any[] = [];
             let offset = 0;
             let hasMore = true;
 
-            // REMOVIDO O LIMITE: Agora carrega TODOS os tickets até acabar
             while (hasMore) {
                 console.log(`📦 Buscando lote ${Math.floor(offset / batchSize) + 1}: offset ${offset}, limit ${batchSize}`);
 
                 let query = supabase
                     .from('tickets')
-                    .select('*', { count: offset === 0 ? 'exact' : undefined }) // Contagem apenas no primeiro lote
+                    // Buscar TODOS os campos EXCETO photo_urls
+                    .select('id, building_id, user_id, location, description, status, created_at, deadline, reprogramming_date, reprogramming_history, constructor_return, external_ticket_id, is_registered, responsible',
+                        { count: offset === 0 ? 'exact' : undefined })
                     .eq('building_id', buildingId)
                     .order('id', { ascending: false })
                     .range(offset, offset + batchSize - 1);
@@ -594,11 +596,38 @@ export const dataService = {
             }
 
             const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
-            console.log(`✅ Prédio ${buildingId}: ${allTickets.length} chamados carregados em ${totalTime}s`);
+            console.log(`✅ Prédio ${buildingId}: ${allTickets.length} chamados carregados em ${totalTime}s (SEM fotos)`);
 
-            return allTickets.map(mapTicket);
+            // Mapear tickets e definir photoUrls como array vazio (serão carregadas sob demanda)
+            return allTickets.map(ticket => ({
+                ...mapTicket(ticket),
+                photoUrls: [] // Fotos carregadas sob demanda
+            }));
         } catch (err) {
             console.error('❌ Erro na busca:', err);
+            return [];
+        }
+    },
+
+    // Buscar fotos de um ticket específico (carregamento sob demanda)
+    getTicketPhotos: async (ticketId: string): Promise<string[]> => {
+        console.log(`📸 Buscando fotos do ticket ${ticketId}...`);
+        try {
+            const { data, error } = await supabase
+                .from('tickets')
+                .select('photo_urls')
+                .eq('id', ticketId)
+                .single();
+
+            if (error) {
+                console.error('❌ Erro ao buscar fotos:', error);
+                return [];
+            }
+
+            console.log(`✅ ${data?.photo_urls?.length || 0} foto(s) carregada(s)`);
+            return data?.photo_urls || [];
+        } catch (err) {
+            console.error('❌ Erro ao buscar fotos:', err);
             return [];
         }
     },
