@@ -59,6 +59,7 @@ export default function ChamadosPage() {
   const [searchTicketNumber, setSearchTicketNumber] = useState<string>('');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [selectedResponsible, setSelectedResponsible] = useState<string>('todos');
+  const [showOnlyExpired, setShowOnlyExpired] = useState<boolean>(false);
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
   const [viewingTicketPhotos, setViewingTicketPhotos] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
@@ -743,7 +744,10 @@ export default function ChamadosPage() {
       (selectedResponsible === 'Construtora' && (!ticket.responsible || ticket.responsible === 'Construtora')) ||
       (selectedResponsible === 'Condomínio' && ticket.responsible === 'Condomínio');
 
-    return statusMatch && buildingMatch && dateMatch && monthMatch && numberMatch && keywordMatch && responsibleMatch;
+    // Filtro de prazo vencido
+    const expiredMatch = !showOnlyExpired || isDeadlineExpired(ticket);
+
+    return statusMatch && buildingMatch && dateMatch && monthMatch && numberMatch && keywordMatch && responsibleMatch && expiredMatch;
   }).sort((a, b) => {
     // Ordenar por data de criação: mais novo primeiro
     const dateA = new Date(a.createdAt || 0).getTime();
@@ -763,7 +767,7 @@ export default function ChamadosPage() {
       setCurrentPage(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, [selectedStatus, selectedBuilding, selectedDate, selectedMonth, searchTicketNumber, searchKeyword, selectedResponsible]);
+  }, [selectedStatus, selectedBuilding, selectedDate, selectedMonth, searchTicketNumber, searchKeyword, selectedResponsible, showOnlyExpired]);
 
   // Contadores para o GRÁFICO (sempre todos os tickets, sem filtro)
   const allTicketsByStatus = {
@@ -1143,6 +1147,18 @@ export default function ChamadosPage() {
             <SelectItem value="Condomínio">Condomínio</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Botão de filtro de prazo vencido */}
+        <Button
+          variant={showOnlyExpired ? "default" : "outline"}
+          onClick={() => setShowOnlyExpired(!showOnlyExpired)}
+          className={cn(
+            "flex-1 font-semibold",
+            showOnlyExpired && "bg-red-600 hover:bg-red-700 text-white"
+          )}
+        >
+          {showOnlyExpired ? "✓ Prazo Vencido" : "Prazo Vencido"}
+        </Button>
 
         {buildings.length > 1 && (
           <Select value={selectedBuilding} onValueChange={setSelectedBuilding}>
