@@ -542,6 +542,7 @@ export default function AdminPage() {
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
                         <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Chamado</th>
+                        <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Criado Por</th>
                         <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Local</th>
                         <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Descrição</th>
                         <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Situação</th>
@@ -613,7 +614,11 @@ export default function AdminPage() {
                                     </button>
                                   </div>
                                 )}
-                                <div className="text-[9px] text-muted-foreground font-normal mt-0.5">{ticketUser?.name}</div>
+                              </td>
+                              <td className="px-3 py-4 text-xs border-x border-border/50">
+                                <div className="text-foreground font-medium truncate max-w-[120px]" title={ticketUser?.name || 'Desconhecido'}>
+                                  {ticketUser?.name || 'N/A'}
+                                </div>
                               </td>
                               <td className="px-3 py-4 text-xs border-x border-border/50">{ticket.location}</td>
                               <td className="px-3 py-4 text-xs border-x border-border/50 max-w-[200px]">

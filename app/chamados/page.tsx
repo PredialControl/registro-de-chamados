@@ -351,6 +351,7 @@ export default function ChamadosPage() {
       // Cabeçalho
       const headerRow = chamadosSheet.addRow([
         'Nº Chamado',
+        'Criado Por',
         'Prédio',
         'Local',
         'Descrição',
@@ -372,6 +373,7 @@ export default function ChamadosPage() {
       // Dados
       filteredTickets.forEach((ticket, index) => {
         const building = buildings.find(b => b.id === ticket.buildingId);
+        const ticketUser = users.find(u => u.id === ticket.userId);
         const statusLabel = STATUS_CONFIG[ticket.status]?.label || ticket.status;
 
         // Links das fotos
@@ -381,6 +383,7 @@ export default function ChamadosPage() {
 
         const row = chamadosSheet.addRow([
           ticket.externalTicketId || 'SEM Nº',
+          ticketUser?.name || 'N/A',
           building?.name || 'N/A',
           ticket.location || '',
           ticket.description || '',
@@ -415,23 +418,24 @@ export default function ChamadosPage() {
       });
 
       // Largura das colunas
-      chamadosSheet.getColumn(1).width = 15;
-      chamadosSheet.getColumn(2).width = 25;
-      chamadosSheet.getColumn(3).width = 20;
-      chamadosSheet.getColumn(4).width = 50;
-      chamadosSheet.getColumn(5).width = 18;
-      chamadosSheet.getColumn(6).width = 12;
-      chamadosSheet.getColumn(7).width = 12;
-      chamadosSheet.getColumn(8).width = 15;
-      chamadosSheet.getColumn(9).width = 40;
-      chamadosSheet.getColumn(10).width = 40;
-      chamadosSheet.getColumn(11).width = 15;
-      chamadosSheet.getColumn(12).width = 80;
+      chamadosSheet.getColumn(1).width = 15;  // Nº Chamado
+      chamadosSheet.getColumn(2).width = 20;  // Criado Por
+      chamadosSheet.getColumn(3).width = 25;  // Prédio
+      chamadosSheet.getColumn(4).width = 20;  // Local
+      chamadosSheet.getColumn(5).width = 50;  // Descrição
+      chamadosSheet.getColumn(6).width = 18;  // Situação
+      chamadosSheet.getColumn(7).width = 12;  // Abertura
+      chamadosSheet.getColumn(8).width = 12;  // Prazo
+      chamadosSheet.getColumn(9).width = 15;  // Reprogramação
+      chamadosSheet.getColumn(10).width = 40; // Retorno Construtora
+      chamadosSheet.getColumn(11).width = 40; // Parecer Engenharia
+      chamadosSheet.getColumn(12).width = 15; // Responsável
+      chamadosSheet.getColumn(13).width = 80; // Fotos
 
       // Filtros automáticos
       chamadosSheet.autoFilter = {
         from: { row: 1, column: 1 },
-        to: { row: 1, column: 12 }
+        to: { row: 1, column: 13 }
       };
 
       // Congelar primeira linha
@@ -1380,6 +1384,7 @@ export default function ChamadosPage() {
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
                   <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Chamado</th>
+                  <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Criado Por</th>
                   <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Local</th>
                   <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Descrição</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Situação</th>
@@ -1396,6 +1401,7 @@ export default function ChamadosPage() {
               <tbody className="divide-y divide-border">
                 {paginatedTickets.map(ticket => {
                   const building = buildings.find(b => b.id === ticket.buildingId);
+                  const ticketUser = users.find(u => u.id === ticket.userId);
                   const hasUnsavedChanges = batchEdits.has(ticket.id);
                   const statusConfig = STATUS_CONFIG[ticket.status];
                   const isExpired = isDeadlineExpired(ticket);
@@ -1473,6 +1479,12 @@ export default function ChamadosPage() {
                             )}
                           </div>
                         )}
+                      </td>
+
+                      <td className="px-3 py-4 text-xs border-x border-border/50">
+                        <div className="text-foreground font-medium truncate max-w-[120px]" title={ticketUser?.name || 'Desconhecido'}>
+                          {ticketUser?.name || 'N/A'}
+                        </div>
                       </td>
 
                       <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
