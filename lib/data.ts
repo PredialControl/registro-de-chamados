@@ -20,6 +20,7 @@ const mapTicket = (dbTicket: any): Ticket => ({
     reprogrammingDate: dbTicket.reprogramming_date,
     reprogrammingHistory: dbTicket.reprogramming_history || [],
     constructorReturn: dbTicket.constructor_return,
+    engineeringOpinion: dbTicket.engineering_opinion,
     externalTicketId: dbTicket.external_ticket_id,
     isRegistered: dbTicket.is_registered,
     responsible: dbTicket.responsible
@@ -335,7 +336,7 @@ export const dataService = {
         // Fetch original ticket to detect changes
         const { data: originalTicket } = await supabase
             .from('tickets')
-            .select('status, constructor_return, external_ticket_id, building_id, reprogramming_history')
+            .select('status, constructor_return, engineering_opinion, external_ticket_id, building_id, reprogramming_history')
             .eq('id', ticketId)
             .single();
 
@@ -355,7 +356,8 @@ export const dataService = {
             });
             dbUpdates.reprogramming_history = updates.reprogrammingHistory;
         }
-        if (updates.constructorReturn) dbUpdates.constructor_return = updates.constructorReturn;
+        if (updates.constructorReturn !== undefined) dbUpdates.constructor_return = updates.constructorReturn;
+        if (updates.engineeringOpinion !== undefined) dbUpdates.engineering_opinion = updates.engineeringOpinion;
         if (updates.externalTicketId) dbUpdates.external_ticket_id = updates.externalTicketId;
         if (updates.isRegistered !== undefined) dbUpdates.is_registered = updates.isRegistered;
         if (updates.responsible !== undefined) dbUpdates.responsible = updates.responsible;
@@ -558,7 +560,7 @@ export const dataService = {
                 let query = supabase
                     .from('tickets')
                     // Buscar TODOS os campos EXCETO photo_urls
-                    .select('id, building_id, user_id, location, description, status, created_at, deadline, reprogramming_date, reprogramming_history, constructor_return, external_ticket_id, is_registered, responsible',
+                    .select('id, building_id, user_id, location, description, status, created_at, deadline, reprogramming_date, reprogramming_history, constructor_return, engineering_opinion, external_ticket_id, is_registered, responsible',
                         { count: offset === 0 ? 'exact' : undefined })
                     .eq('building_id', buildingId)
                     .order('id', { ascending: false })
@@ -792,6 +794,7 @@ export const dataService = {
         deadline?: string;
         externalTicketId?: string;
         constructorReturn?: string;
+        engineeringOpinion?: string;
         responsible?: string;
     }): Promise<void> => {
         // Construir objeto base - SEMPRE incluir deadline e created_at (null se vazio)
@@ -808,6 +811,7 @@ export const dataService = {
             deadline: ticketData.deadline || null,
             external_ticket_id: ticketData.externalTicketId || null,
             constructor_return: ticketData.constructorReturn || null,
+            engineering_opinion: ticketData.engineeringOpinion || null,
             responsible: ticketData.responsible || null,
             // Chamados importados sempre são marcados como registrados (não aparecem em "Pendentes")
             is_registered: true,
