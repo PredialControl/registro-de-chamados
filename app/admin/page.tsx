@@ -730,12 +730,14 @@ export default function AdminPage() {
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="user">USUÁRIO COMUM</SelectItem>
+                          <SelectItem value="conselho">CONSELHO DE PRÉDIO</SelectItem>
                           <SelectItem value="building_admin">ADMIN DE PRÉDIO</SelectItem>
                           <SelectItem value="admin">ADMINISTRADOR GERAL</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        {userRole === 'user' && '👤 Pode apenas visualizar chamados'}
+                        {userRole === 'user' && '👤 Pode visualizar e criar chamados'}
+                        {userRole === 'conselho' && '👁️ Pode APENAS visualizar chamados (não pode criar)'}
                         {userRole === 'building_admin' && '🏢 Pode editar/excluir apenas nos prédios atribuídos'}
                         {userRole === 'admin' && '⚡ Acesso total ao sistema'}
                       </p>
@@ -777,9 +779,12 @@ export default function AdminPage() {
                         "text-[9px] px-1.5 py-0.5 rounded font-black",
                         u.role === 'admin' ? "bg-red-50 text-red-600 dark:bg-red-900/20" :
                         u.role === 'building_admin' ? "bg-orange-50 text-orange-600 dark:bg-orange-900/20" :
+                        u.role === 'conselho' ? "bg-purple-50 text-purple-600 dark:bg-purple-900/20" :
                         "bg-blue-50 text-blue-600 dark:bg-blue-900/20"
                       )}>
-                        {u.role === 'building_admin' ? 'ADMIN PRÉDIO' : u.role.toUpperCase()}
+                        {u.role === 'building_admin' ? 'ADMIN PRÉDIO' :
+                         u.role === 'conselho' ? 'CONSELHO' :
+                         u.role.toUpperCase()}
                       </span>
                       <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded font-black">{u.allowedBuildings.length} PRÉDIOS</span>
                     </div>
