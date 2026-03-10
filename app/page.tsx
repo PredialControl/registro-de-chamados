@@ -34,6 +34,10 @@ export default function TicketPage() {
     if (!isLoading && !user) {
       router.push('/login');
     }
+    // Redirecionar usuários 'conselho' para a página de chamados (não podem criar)
+    if (!isLoading && user?.role === 'conselho') {
+      router.push('/chamados');
+    }
   }, [user, isLoading, router]);
 
   useEffect(() => {

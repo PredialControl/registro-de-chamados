@@ -27,16 +27,19 @@ export default function BottomNav() {
     return (
         <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border pb-safe transition-colors duration-300">
             <div className="w-full px-4 mx-auto flex justify-around items-center h-16">
-                <Link
-                    href="/"
-                    className={cn(
-                        "flex flex-col items-center justify-center w-full h-full space-y-1",
-                        isActive('/') ? "text-blue-600" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    )}
-                >
-                    <PlusCircle className="w-6 h-6" />
-                    <span className="text-xs font-medium">Abrir</span>
-                </Link>
+                {/* Esconder botão "Abrir" para role conselho */}
+                {user?.role !== 'conselho' && (
+                    <Link
+                        href="/"
+                        className={cn(
+                            "flex flex-col items-center justify-center w-full h-full space-y-1",
+                            isActive('/') ? "text-blue-600" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                        )}
+                    >
+                        <PlusCircle className="w-6 h-6" />
+                        <span className="text-xs font-medium">Abrir</span>
+                    </Link>
+                )}
 
                 <Link
                     href="/chamados"

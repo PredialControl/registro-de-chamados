@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'building_admin' | 'user';
+export type UserRole = 'admin' | 'building_admin' | 'user' | 'conselho';
 
 export interface User {
     id: string;
@@ -7,6 +7,7 @@ export interface User {
     role: UserRole;
     allowedBuildings: string[]; // Building IDs
     turma?: string;
+    mustChangePassword?: boolean; // Flag para forçar troca de senha no primeiro acesso
 }
 
 export interface Building {

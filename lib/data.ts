@@ -33,7 +33,8 @@ const mapUser = (dbUser: any): User => ({
     email: dbUser.email,
     role: dbUser.role as any,
     allowedBuildings: dbUser.allowed_buildings || [],
-    turma: dbUser.turma
+    turma: dbUser.turma,
+    mustChangePassword: dbUser.must_change_password
 });
 
 const STORAGE_KEYS = {
@@ -695,6 +696,7 @@ export const dataService = {
         if (updates.role) dbUpdates.role = updates.role;
         if (updates.turma) dbUpdates.turma = updates.turma;
         if (updates.allowedBuildings) dbUpdates.allowed_buildings = updates.allowedBuildings;
+        if (updates.mustChangePassword !== undefined) dbUpdates.must_change_password = updates.mustChangePassword;
 
         const { error } = await supabase
             .from('profiles')
@@ -702,6 +704,18 @@ export const dataService = {
             .eq('id', userId);
 
         if (error) console.error('Error updating user:', error);
+    },
+
+    // Atualizar senha do usuário no Supabase Auth
+    updatePassword: async (newPassword: string): Promise<void> => {
+        const { error } = await supabase.auth.updateUser({
+            password: newPassword
+        });
+
+        if (error) {
+            console.error('Error updating password:', error);
+            throw error;
+        }
     },
 
     deleteUser: async (userId: string): Promise<void> => {
