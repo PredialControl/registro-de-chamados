@@ -670,14 +670,19 @@ export const dataService = {
 
     // --- USER MANAGEMENT (Admin only) ---
     createUser: async (userData: Omit<User, 'id'>): Promise<User | null> => {
+        // Gerar UUID para o novo usuário
+        const userId = crypto.randomUUID();
+
         const { data, error } = await supabase
             .from('profiles')
             .insert({
+                id: userId,
                 name: userData.name,
                 email: userData.email,
                 role: userData.role,
                 turma: userData.turma,
-                allowed_buildings: userData.allowedBuildings
+                allowed_buildings: userData.allowedBuildings,
+                must_change_password: false // Novo usuário não precisa trocar senha
             })
             .select()
             .single();
