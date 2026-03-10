@@ -673,6 +673,15 @@ export const dataService = {
         // Gerar UUID para o novo usuário
         const userId = crypto.randomUUID();
 
+        console.log('📝 Tentando criar usuário:', {
+            id: userId,
+            name: userData.name,
+            email: userData.email,
+            role: userData.role,
+            turma: userData.turma,
+            allowed_buildings: userData.allowedBuildings
+        });
+
         const { data, error } = await supabase
             .from('profiles')
             .insert({
@@ -688,9 +697,16 @@ export const dataService = {
             .single();
 
         if (error) {
-            console.error('Error creating user:', error);
-            return null;
+            console.error('❌ ERRO DETALHADO ao criar usuário:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code
+            });
+            throw new Error(`Erro ao criar usuário: ${error.message} - ${error.details || error.hint || ''}`);
         }
+
+        console.log('✅ Usuário criado com sucesso:', data);
         return mapUser(data);
     },
 
