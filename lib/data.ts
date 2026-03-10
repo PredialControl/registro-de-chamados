@@ -691,7 +691,7 @@ export const dataService = {
                 role: userData.role,
                 turma: userData.turma,
                 allowed_buildings: userData.allowedBuildings,
-                must_change_password: false // Novo usuário não precisa trocar senha
+                must_change_password: true // FORÇAR trocar senha no primeiro login
             })
             .select()
             .single();
