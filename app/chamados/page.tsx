@@ -795,32 +795,32 @@ export default function ChamadosPage() {
     f_indevido: filteredTickets.filter(t => t.status === 'f_indevido').length,
   };
 
-  // Gráfico usa TODOS os tickets (sem filtro)
+  // Gráfico usa os tickets FILTRADOS (responde aos filtros)
   const chartData = Object.entries(STATUS_CONFIG)
     .map(([key, config]) => ({
       key: key,
       name: config.label,
-      value: allTicketsByStatus[key as keyof typeof allTicketsByStatus], // Usar allTicketsByStatus
+      value: ticketsByStatus[key as keyof typeof ticketsByStatus], // Usar ticketsByStatus (filtrados)
       color: config.chartColor
     }))
     .filter(item => item.value > 0);
 
-  // Dados por responsável para o GRÁFICO (sempre todos)
-  const allTicketsByResponsible = {
-    construtora: tickets.filter(t => !t.responsible || t.responsible === 'Construtora').length,
-    condominio: tickets.filter(t => t.responsible === 'Condomínio').length,
+  // Dados por responsável para o GRÁFICO (usa tickets filtrados)
+  const filteredTicketsByResponsible = {
+    construtora: filteredTickets.filter(t => !t.responsible || t.responsible === 'Construtora').length,
+    condominio: filteredTickets.filter(t => t.responsible === 'Condomínio').length,
   };
 
-  // Gráfico de responsáveis usa TODOS os tickets
+  // Gráfico de responsáveis usa os tickets FILTRADOS
   const responsibleChartData = [
     {
       name: 'Construtora',
-      value: allTicketsByResponsible.construtora,
+      value: filteredTicketsByResponsible.construtora,
       color: '#ef4444' // vermelho
     },
     {
       name: 'Condomínio',
-      value: allTicketsByResponsible.condominio,
+      value: filteredTicketsByResponsible.condominio,
       color: '#3b82f6' // azul
     }
   ].filter(item => item.value > 0);
