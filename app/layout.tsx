@@ -19,7 +19,6 @@ const geistMono = Geist_Mono({
 
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
-import ChangePasswordWrapper from "@/components/ChangePasswordWrapper";
 
 export const metadata: Metadata = {
   title: "Gestor de Chamados",
@@ -52,7 +51,6 @@ export default function RootLayout({
         >
           <AuthProvider>
             <OfflineIndicator />
-            <ChangePasswordWrapper />
             <MobileContainer>
               {children}
               <BottomNav />
