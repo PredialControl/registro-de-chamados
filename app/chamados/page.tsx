@@ -1712,6 +1712,42 @@ export default function ChamadosPage() {
                       </Select>
                     </div>
 
+                    {/* Prazo */}
+                    <div>
+                      <label className="text-sm font-semibold text-foreground">Prazo de Conclusão</label>
+                      <Input
+                        type="date"
+                        value={viewingTicket.deadline || ''}
+                        onChange={(e) => {
+                          setViewingTicket({ ...viewingTicket, deadline: e.target.value });
+                        }}
+                        className={cn(
+                          "h-10 text-sm mt-1",
+                          isDeadlineExpired(viewingTicket)
+                            ? "border-red-500 text-red-600 dark:text-red-400"
+                            : "border-blue-300 text-blue-600 dark:text-blue-400"
+                        )}
+                      />
+                      {isDeadlineExpired(viewingTicket) && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">⚠️ Prazo vencido!</p>
+                      )}
+                    </div>
+
+                    {/* Motivo da mudança de prazo */}
+                    {originalDeadline !== viewingTicket.deadline && viewingTicket.deadline && (
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-300 dark:border-yellow-700">
+                        <label className="text-sm font-semibold text-yellow-800 dark:text-yellow-400">
+                          ⚠️ Motivo da Mudança de Prazo (Obrigatório)
+                        </label>
+                        <Textarea
+                          value={deadlineChangeReason}
+                          onChange={(e) => setDeadlineChangeReason(e.target.value)}
+                          placeholder={`Prazo anterior: ${originalDeadline ? formatDate(originalDeadline) : 'Não definido'}\nNovo prazo: ${formatDate(viewingTicket.deadline)}\n\nExplique o motivo da mudança...`}
+                          className="min-h-[80px] text-sm mt-2"
+                        />
+                      </div>
+                    )}
+
                     {/* Status - muda conforme responsável */}
                     <div>
                       <label className="text-sm font-semibold text-foreground">Status</label>
@@ -1742,6 +1778,28 @@ export default function ChamadosPage() {
                           )}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Retorno da Construtora */}
+                    <div>
+                      <label className="text-sm font-semibold text-foreground">Retorno da Construtora</label>
+                      <Textarea
+                        value={viewingTicket.constructorReturn || ''}
+                        onChange={(e) => setViewingTicket({ ...viewingTicket, constructorReturn: e.target.value })}
+                        placeholder="Resposta/retorno da construtora sobre o chamado..."
+                        className="min-h-[100px] text-sm mt-1"
+                      />
+                    </div>
+
+                    {/* Parecer da Engenharia */}
+                    <div>
+                      <label className="text-sm font-semibold text-foreground">Parecer da Engenharia</label>
+                      <Textarea
+                        value={viewingTicket.engineeringOpinion || ''}
+                        onChange={(e) => setViewingTicket({ ...viewingTicket, engineeringOpinion: e.target.value })}
+                        placeholder="Parecer técnico da engenharia sobre o chamado..."
+                        className="min-h-[100px] text-sm mt-1"
+                      />
                     </div>
 
                     {/* Botão Salvar */}
