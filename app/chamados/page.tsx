@@ -2500,87 +2500,175 @@ export default function ChamadosPage() {
         </div>
       )}
 
-      {/* Modal de Visualização do Histórico */}
-      {viewingHistoryTicket && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border">
-            <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
-              <div className="flex-1">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  📋 Histórico de Reprogramações
-                  {viewingHistoryTicket.externalTicketId && (
-                    <span className="text-sm bg-amber-600 text-white px-2 py-0.5 rounded-full font-bold">
-                      Nº {viewingHistoryTicket.externalTicketId}
-                    </span>
-                  )}
-                </CardTitle>
-                <p className="text-muted-foreground text-xs mt-1">
-                  {buildings.find(b => b.id === viewingHistoryTicket.buildingId)?.name || 'Prédio não encontrado'}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setViewingHistoryTicket(null)}
-                className="hover:bg-muted"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </CardHeader>
-            <CardContent className="p-6 overflow-y-auto">
-              {viewingHistoryTicket.reprogrammingHistory && viewingHistoryTicket.reprogrammingHistory.length > 0 ? (
-                <div className="space-y-3">
-                  {viewingHistoryTicket.reprogrammingHistory.map((item: any, index: number) => (
-                    <Card key={index} className="p-4 bg-muted/30 hover:bg-muted/50 transition-colors group">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs bg-amber-600 text-white px-2 py-0.5 rounded-full font-bold">
-                              #{index + 1}
-                            </span>
-                            <span className="text-sm font-bold text-amber-600 dark:text-amber-400">
-                              {formatDate(item.date)}
-                            </span>
+      {/* Modal de Visualização do Histórico Completo (Linha do Tempo) */}
+      {viewingHistoryTicket && (() => {
+        // Montar linha do tempo unificada
+        const timelineItems: { date: string; type: string; icon: string; color: string; bgColor: string; title: string; content: string; canDelete?: boolean; deleteIndex?: number }[] = [];
+
+        // 1. Abertura do chamado
+        if (viewingHistoryTicket.createdAt) {
+          const ticketUser = users.find(u => u.id === viewingHistoryTicket.userId);
+          timelineItems.push({
+            date: viewingHistoryTicket.createdAt,
+            type: 'abertura',
+            icon: '📋',
+            color: 'text-blue-600 dark:text-blue-400',
+            bgColor: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+            title: 'Abertura do Chamado',
+            content: `${ticketUser?.name || 'Usuário'} solicitou abertura do chamado.\n\nLocal: ${viewingHistoryTicket.location}\n\nDescrição: ${viewingHistoryTicket.description}`
+          });
+        }
+
+        // 2. Retorno da Construtora (campo antigo)
+        if (viewingHistoryTicket.constructorReturn) {
+          timelineItems.push({
+            date: viewingHistoryTicket.createdAt, // Usar data de criação como fallback
+            type: 'construtora_antigo',
+            icon: '🏗️',
+            color: 'text-orange-600 dark:text-orange-400',
+            bgColor: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
+            title: 'Retorno da Construtora',
+            content: viewingHistoryTicket.constructorReturn
+          });
+        }
+
+        // 3. Parecer da Engenharia (campo antigo)
+        if (viewingHistoryTicket.engineeringOpinion) {
+          timelineItems.push({
+            date: viewingHistoryTicket.createdAt, // Usar data de criação como fallback
+            type: 'engenharia_antigo',
+            icon: '⚙️',
+            color: 'text-purple-600 dark:text-purple-400',
+            bgColor: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800',
+            title: 'Parecer da Engenharia',
+            content: viewingHistoryTicket.engineeringOpinion
+          });
+        }
+
+        // 4. Reprogramações
+        if (viewingHistoryTicket.reprogrammingHistory && viewingHistoryTicket.reprogrammingHistory.length > 0) {
+          viewingHistoryTicket.reprogrammingHistory.forEach((item: any, index: number) => {
+            timelineItems.push({
+              date: item.updatedAt || item.date,
+              type: 'reprogramacao',
+              icon: '🔄',
+              color: 'text-amber-600 dark:text-amber-400',
+              bgColor: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
+              title: `Reprogramação para ${formatDate(item.date)}`,
+              content: item.reason || 'Sem motivo informado',
+              canDelete: true,
+              deleteIndex: index
+            });
+          });
+        }
+
+        // 5. Updates/Pareceres novos
+        if (viewingHistoryTicket.updates && viewingHistoryTicket.updates.length > 0) {
+          viewingHistoryTicket.updates.forEach((update: TicketUpdate) => {
+            const typeConfig = UPDATE_TYPE_CONFIG[update.type];
+            timelineItems.push({
+              date: update.createdAt,
+              type: update.type,
+              icon: typeConfig.icon,
+              color: typeConfig.color,
+              bgColor: typeConfig.bgColor,
+              title: `${typeConfig.label}`,
+              content: `${update.message}\n\n— ${update.createdBy}`
+            });
+          });
+        }
+
+        // Ordenar por data (mais antigo primeiro)
+        timelineItems.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border">
+              <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
+                <div className="flex-1">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    📜 Linha do Tempo
+                    {viewingHistoryTicket.externalTicketId && (
+                      <span className="text-sm bg-amber-600 text-white px-2 py-0.5 rounded-full font-bold">
+                        Nº {viewingHistoryTicket.externalTicketId}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {buildings.find(b => b.id === viewingHistoryTicket.buildingId)?.name || 'Prédio não encontrado'} • {viewingHistoryTicket.location}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setViewingHistoryTicket(null)}
+                  className="hover:bg-muted"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </CardHeader>
+              <CardContent className="p-6 overflow-y-auto">
+                {timelineItems.length > 0 ? (
+                  <div className="relative">
+                    {/* Linha vertical */}
+                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-muted-foreground/20"></div>
+
+                    <div className="space-y-4">
+                      {timelineItems.map((item, index) => (
+                        <div key={index} className="relative pl-10 group">
+                          {/* Ícone na linha */}
+                          <div className="absolute left-0 w-8 h-8 rounded-full bg-background border-2 border-muted flex items-center justify-center text-lg">
+                            {item.icon}
                           </div>
-                          {item.reason && (
-                            <div className="text-sm text-foreground bg-background p-3 rounded-lg border">
-                              <span className="font-semibold text-muted-foreground">Motivo:</span>
-                              <p className="mt-1">{item.reason}</p>
+
+                          <Card className={cn("p-4 border-2 transition-colors", item.bgColor)}>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                  <span className={cn("text-sm font-bold", item.color)}>
+                                    {item.title}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(item.date).toLocaleDateString('pt-BR', {
+                                      day: '2-digit', month: '2-digit', year: 'numeric',
+                                      hour: '2-digit', minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-foreground whitespace-pre-wrap">
+                                  {item.content}
+                                </div>
+                              </div>
+                              {item.canDelete && isAdmin && (
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeSingleReprogramming(viewingHistoryTicket, item.deleteIndex!);
+                                  }}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Remover"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
-                          )}
+                          </Card>
                         </div>
-                        {isAdmin && (
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeSingleReprogramming(viewingHistoryTicket, index);
-                            }}
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Remover esta reprogramação"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
-                  {isAdmin && (
-                    <p className="text-xs text-muted-foreground text-center italic mt-4">
-                      💡 Passe o mouse sobre cada item para ver o botão de exclusão
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhuma reprogramação encontrada
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhum histórico encontrado
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* Gallery Modal */}
       {selectedTicketForGallery && (
