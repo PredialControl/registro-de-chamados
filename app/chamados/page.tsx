@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { dataService } from '@/lib/data';
-import { Ticket, Building, User } from '@/lib/mockData';
+import { Ticket, Building, User, TicketUpdate, UpdateType } from '@/lib/mockData';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon, Edit2, FileSpreadsheet, Camera, Eye } from 'lucide-react';
+import { Loader2, RefreshCw, Download, Save, X, Trash2, Sun, Moon, Edit2, FileSpreadsheet, Camera, Eye, Plus, MessageSquare, Clock, Building2, Wrench, HardHat } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,12 @@ const STATUS_CONFIG = {
   aguardando_vistoria: { label: 'Aguardando vistoria', color: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400', chartColor: '#a855f7' },
   concluido: { label: 'Concluído', color: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400', chartColor: '#22c55e' },
   f_indevido: { label: 'F. Indevido', color: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400', chartColor: '#ef4444' },
+};
+
+const UPDATE_TYPE_CONFIG: Record<UpdateType, { label: string; color: string; bgColor: string; icon: string }> = {
+  construtora: { label: 'Construtora', color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800', icon: '🏗️' },
+  condominio: { label: 'Condomínio', color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800', icon: '🏢' },
+  engenharia: { label: 'Engenharia', color: 'text-purple-600 dark:text-purple-400', bgColor: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800', icon: '⚙️' },
 };
 
 export default function ChamadosPage() {
@@ -85,6 +91,12 @@ export default function ChamadosPage() {
   const [responsibleChangeTicket, setResponsibleChangeTicket] = useState<Ticket | null>(null);
   const [responsibleChangeNewValue, setResponsibleChangeNewValue] = useState<'Construtora' | 'Condomínio'>('Condomínio');
   const [responsibleChangeReasonModal, setResponsibleChangeReasonModal] = useState<string>('');
+
+  // Modal de adicionar atualização/parecer
+  const [addingUpdateToTicket, setAddingUpdateToTicket] = useState<Ticket | null>(null);
+  const [newUpdateType, setNewUpdateType] = useState<UpdateType | null>(null);
+  const [newUpdateMessage, setNewUpdateMessage] = useState<string>('');
+  const [isSavingUpdate, setIsSavingUpdate] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -375,10 +387,7 @@ export default function ChamadosPage() {
         'Descrição',
         'Status',
         'Abertura',
-        'Prazo',
-        'Reprogramação',
-        'Retorno Construtora',
-        'Parecer Engenharia',
+        'Histórico de Atualizações',
         'Responsável',
         'Fotos'
       ]);
@@ -399,6 +408,39 @@ export default function ChamadosPage() {
           ? ticket.photoUrls.map((url, i) => `Foto ${i + 1}: ${url}`).join('\n')
           : 'Sem fotos';
 
+        // Montar histórico de atualizações formatado
+        const updateTypeLabels: Record<string, string> = {
+          construtora: 'CONSTRUTORA',
+          condominio: 'CONDOMÍNIO',
+          engenharia: 'ENGENHARIA'
+        };
+
+        let historicoTexto = `[${formatDate(ticket.createdAt)}] ABERTURA - ${ticketUser?.name || 'Usuário'} solicitou abertura de chamado`;
+
+        // Adicionar reprogramações ao histórico
+        if (ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0) {
+          ticket.reprogrammingHistory.forEach(item => {
+            const dataReprog = item.updatedAt ? formatDate(item.updatedAt) : formatDate(item.date);
+            historicoTexto += `\n\n[${dataReprog}] REPROGRAMAÇÃO - Para ${formatDate(item.date)}${item.reason ? `: ${item.reason}` : ''}`;
+          });
+        }
+
+        // Adicionar atualizações/pareceres ao histórico
+        if (ticket.updates && ticket.updates.length > 0) {
+          // Ordenar por data
+          const sortedUpdates = [...ticket.updates].sort((a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+          sortedUpdates.forEach(update => {
+            const dataUpdate = new Date(update.createdAt).toLocaleDateString('pt-BR', {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+              hour: '2-digit', minute: '2-digit'
+            });
+            const tipoLabel = updateTypeLabels[update.type] || update.type.toUpperCase();
+            historicoTexto += `\n\n[${dataUpdate}] ${tipoLabel} - ${update.message} (Por: ${update.createdBy})`;
+          });
+        }
+
         const row = chamadosSheet.addRow([
           ticket.externalTicketId || 'SEM Nº',
           ticket.location || '',
@@ -407,10 +449,7 @@ export default function ChamadosPage() {
           ticket.description || '',
           statusLabel,
           ticket.createdAt ? formatDate(ticket.createdAt) : '--',
-          ticket.deadline ? formatDate(ticket.deadline) : '--',
-          ticket.reprogrammingDate ? formatDate(ticket.reprogrammingDate) : '--',
-          ticket.constructorReturn || '--',
-          ticket.engineeringOpinion || '--',
+          historicoTexto,
           ticket.responsible || 'Construtora',
           photoLinks
         ]);
@@ -423,16 +462,16 @@ export default function ChamadosPage() {
           row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
         }
 
-        // Colorir coluna de status
+        // Colorir coluna de status (coluna 6)
         const statusColor = STATUS_CONFIG[ticket.status]?.chartColor.replace('#', 'FF') || 'FFCCCCCC';
-        row.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } };
-        row.getCell(5).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        row.getCell(5).alignment = { horizontal: 'center' };
+        row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } };
+        row.getCell(6).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        row.getCell(6).alignment = { horizontal: 'center' };
 
         // Alinhamento vertical centralizado (sem wrap text)
         row.eachCell((cell) => {
           const colNum = typeof cell.col === 'number' ? cell.col : parseInt(cell.col as string);
-          cell.alignment = { vertical: 'middle', horizontal: colNum === 5 ? 'center' : 'left' };
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 6 ? 'center' : 'left' };
         });
       });
 
@@ -444,17 +483,14 @@ export default function ChamadosPage() {
       chamadosSheet.getColumn(5).width = 50;  // Descrição
       chamadosSheet.getColumn(6).width = 18;  // Status
       chamadosSheet.getColumn(7).width = 12;  // Abertura
-      chamadosSheet.getColumn(8).width = 12;  // Prazo
-      chamadosSheet.getColumn(9).width = 15;  // Reprogramação
-      chamadosSheet.getColumn(10).width = 40; // Retorno Construtora
-      chamadosSheet.getColumn(11).width = 40; // Parecer Engenharia
-      chamadosSheet.getColumn(12).width = 15; // Responsável
-      chamadosSheet.getColumn(13).width = 80; // Fotos
+      chamadosSheet.getColumn(8).width = 80;  // Histórico de Atualizações
+      chamadosSheet.getColumn(9).width = 15;  // Responsável
+      chamadosSheet.getColumn(10).width = 80; // Fotos
 
       // Filtros automáticos
       chamadosSheet.autoFilter = {
         from: { row: 1, column: 1 },
-        to: { row: 1, column: 13 }
+        to: { row: 1, column: 10 }
       };
 
       // Congelar primeira linha
@@ -1676,42 +1712,6 @@ export default function ChamadosPage() {
                       </Select>
                     </div>
 
-                    {/* Prazo */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Prazo de Conclusão</label>
-                      <Input
-                        type="date"
-                        value={viewingTicket.deadline || ''}
-                        onChange={(e) => {
-                          setViewingTicket({ ...viewingTicket, deadline: e.target.value });
-                        }}
-                        className={cn(
-                          "h-10 text-sm mt-1",
-                          isDeadlineExpired(viewingTicket)
-                            ? "border-red-500 text-red-600 dark:text-red-400"
-                            : "border-blue-300 text-blue-600 dark:text-blue-400"
-                        )}
-                      />
-                      {isDeadlineExpired(viewingTicket) && (
-                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">⚠️ Prazo vencido!</p>
-                      )}
-                    </div>
-
-                    {/* Motivo da mudança de prazo */}
-                    {originalDeadline !== viewingTicket.deadline && viewingTicket.deadline && (
-                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-300 dark:border-yellow-700">
-                        <label className="text-sm font-semibold text-yellow-800 dark:text-yellow-400">
-                          ⚠️ Motivo da Mudança de Prazo (Obrigatório)
-                        </label>
-                        <Textarea
-                          value={deadlineChangeReason}
-                          onChange={(e) => setDeadlineChangeReason(e.target.value)}
-                          placeholder={`Prazo anterior: ${originalDeadline ? formatDate(originalDeadline) : 'Não definido'}\nNovo prazo: ${formatDate(viewingTicket.deadline)}\n\nExplique o motivo da mudança...`}
-                          className="min-h-[80px] text-sm mt-2"
-                        />
-                      </div>
-                    )}
-
                     {/* Status - muda conforme responsável */}
                     <div>
                       <label className="text-sm font-semibold text-foreground">Status</label>
@@ -1742,28 +1742,6 @@ export default function ChamadosPage() {
                           )}
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    {/* Retorno da Construtora */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Retorno da Construtora</label>
-                      <Textarea
-                        value={viewingTicket.constructorReturn || ''}
-                        onChange={(e) => setViewingTicket({ ...viewingTicket, constructorReturn: e.target.value })}
-                        placeholder="Digite o retorno da construtora..."
-                        className="min-h-[80px] text-sm mt-1"
-                      />
-                    </div>
-
-                    {/* Parecer da Engenharia */}
-                    <div>
-                      <label className="text-sm font-semibold text-purple-600 dark:text-purple-400">Parecer da Engenharia</label>
-                      <Textarea
-                        value={viewingTicket.engineeringOpinion || ''}
-                        onChange={(e) => setViewingTicket({ ...viewingTicket, engineeringOpinion: e.target.value })}
-                        placeholder="Digite o parecer da engenharia..."
-                        className="min-h-[80px] text-sm mt-1"
-                      />
                     </div>
 
                     {/* Botão Salvar */}
@@ -1846,86 +1824,157 @@ export default function ChamadosPage() {
                       <p className="text-sm text-muted-foreground mt-1">{formatDate(viewingTicket.createdAt)}</p>
                     </div>
 
-                    {/* Prazo */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Prazo de Conclusão</label>
-                      <p className={cn(
-                        "text-sm mt-1 font-medium",
-                        isDeadlineExpired(viewingTicket)
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-blue-600 dark:text-blue-400"
-                      )}>
-                        {viewingTicket.deadline ? formatDate(viewingTicket.deadline) : '--'}
-                        {isDeadlineExpired(viewingTicket) && (
-                          <span className="ml-2 text-[10px] bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded-full border border-red-300 dark:border-red-700">
-                            ⚠️ VENCIDO
-                          </span>
-                        )}
-                      </p>
-                    </div>
-
                     {/* Responsável */}
                     <div>
                       <label className="text-sm font-semibold text-foreground">Responsável</label>
                       <p className="text-sm text-muted-foreground mt-1">{viewingTicket.responsible || 'Construtora'}</p>
                     </div>
-
-                    {/* Data de Reprogramação */}
-                    {viewingTicket.reprogrammingDate && (
-                      <div>
-                        <label className="text-sm font-semibold text-foreground">Reprogramado para</label>
-                        <p className="text-sm text-orange-600 dark:text-orange-400 mt-1 font-medium">
-                          {formatDate(viewingTicket.reprogrammingDate)}
-                        </p>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Retorno da Construtora */}
-                  {viewingTicket.constructorReturn && (
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Retorno da Construtora</label>
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{viewingTicket.constructorReturn}</p>
-                    </div>
-                  )}
-
-                  {/* Parecer da Engenharia */}
-                  {viewingTicket.engineeringOpinion && (
-                    <div>
-                      <label className="text-sm font-semibold text-purple-600 dark:text-purple-400">Parecer da Engenharia</label>
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{viewingTicket.engineeringOpinion}</p>
-                    </div>
-                  )}
                 </>
               )}
 
-              {/* Histórico de Reprogramações */}
-              {viewingTicket.reprogrammingHistory && viewingTicket.reprogrammingHistory.length > 0 && (
-                <div>
-                  <label className="text-sm font-semibold text-foreground">Histórico de Reprogramações</label>
-                  <div className="mt-2 space-y-2">
-                    {viewingTicket.reprogrammingHistory.map((item, index) => (
-                      <Card key={index} className="p-3 bg-muted/50">
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex-1">
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-semibold">Data:</span> {formatDate(item.date)}
-                            </p>
-                            {item.reason && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                <span className="font-semibold">Motivo:</span> {item.reason}
-                              </p>
-                            )}
-                          </div>
-                          <span className="text-[10px] bg-orange-600 text-white px-2 py-0.5 rounded-full font-bold">
-                            #{index + 1}
-                          </span>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
+              {/* LINHA DO TEMPO DO CHAMADO */}
+              <div className="border-t border-border pt-4 mt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <label className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Linha do Tempo do Chamado
+                  </label>
+                  {isAdmin && (
+                    <Button
+                      size="sm"
+                      onClick={() => setAddingUpdateToTicket(viewingTicket)}
+                      className="bg-green-600 hover:bg-green-700 gap-1 h-8"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Adicionar Atualização
+                    </Button>
+                  )}
                 </div>
-              )}
+
+                <div className="space-y-0 max-h-[400px] overflow-y-auto pr-2">
+                  {/* Monta a linha do tempo completa */}
+                  {(() => {
+                    const ticketUser = users.find(u => u.id === viewingTicket.userId);
+
+                    // Criar array de todos os eventos
+                    type TimelineEvent = {
+                      id: string;
+                      date: string;
+                      type: 'abertura' | 'reprogramacao' | 'construtora' | 'condominio' | 'engenharia';
+                      message: string;
+                      author: string;
+                    };
+
+                    const events: TimelineEvent[] = [];
+
+                    // 1. Evento de abertura do chamado
+                    events.push({
+                      id: 'abertura',
+                      date: viewingTicket.createdAt,
+                      type: 'abertura',
+                      message: `Solicitou abertura de chamado`,
+                      author: ticketUser?.name || 'Usuário'
+                    });
+
+                    // 2. Histórico de reprogramações
+                    if (viewingTicket.reprogrammingHistory) {
+                      viewingTicket.reprogrammingHistory.forEach((item, index) => {
+                        events.push({
+                          id: `reprog-${index}`,
+                          date: item.updatedAt || item.date,
+                          type: 'reprogramacao',
+                          message: `Reprogramação para ${formatDate(item.date)}${item.reason ? `: ${item.reason}` : ''}`,
+                          author: 'Sistema'
+                        });
+                      });
+                    }
+
+                    // 3. Atualizações/Pareceres
+                    if (viewingTicket.updates) {
+                      viewingTicket.updates.forEach(update => {
+                        events.push({
+                          id: update.id,
+                          date: update.createdAt,
+                          type: update.type,
+                          message: update.message,
+                          author: update.createdBy
+                        });
+                      });
+                    }
+
+                    // Ordenar por data (mais antigo primeiro - abertura no topo)
+                    events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+                    // Configuração visual para cada tipo
+                    const eventConfig: Record<string, { icon: string; color: string; bgColor: string; label: string }> = {
+                      abertura: { icon: '📋', color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800', label: 'Abertura' },
+                      reprogramacao: { icon: '📅', color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800', label: 'Reprogramação' },
+                      construtora: { icon: '🏗️', color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800', label: 'Construtora' },
+                      condominio: { icon: '🏢', color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800', label: 'Condomínio' },
+                      engenharia: { icon: '⚙️', color: 'text-purple-600 dark:text-purple-400', bgColor: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800', label: 'Engenharia' },
+                    };
+
+                    return events.map((event, index) => {
+                      const config = eventConfig[event.type];
+                      const isLast = index === events.length - 1;
+                      const isAbertura = event.type === 'abertura';
+
+                      return (
+                        <div key={event.id} className="relative flex gap-3">
+                          {/* Linha vertical conectando os eventos */}
+                          {!isLast && (
+                            <div className="absolute left-[19px] top-10 bottom-0 w-0.5 bg-border" />
+                          )}
+
+                          {/* Ícone do evento */}
+                          <div className={cn(
+                            "flex-shrink-0 rounded-full flex items-center justify-center border-2 bg-background z-10",
+                            isAbertura ? "w-12 h-12 text-2xl" : "w-10 h-10 text-lg",
+                            config.bgColor
+                          )}>
+                            {config.icon}
+                          </div>
+
+                          {/* Conteúdo do evento */}
+                          <div className={cn("flex-1 pb-4 min-w-0")}>
+                            <Card className={cn("border", isAbertura ? "p-4" : "p-3", config.bgColor)}>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <span className={cn("font-bold uppercase", isAbertura ? "text-sm" : "text-xs", config.color)}>
+                                  {config.label}
+                                </span>
+                                <span className={cn("text-muted-foreground", isAbertura ? "text-xs" : "text-[10px]")}>
+                                  {new Date(event.date).toLocaleDateString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+
+                              {isAbertura ? (
+                                <p className="text-base text-foreground">
+                                  <span className="font-bold">{event.author}</span> solicitou abertura de chamado
+                                </p>
+                              ) : (
+                                <>
+                                  <p className="text-sm text-foreground whitespace-pre-wrap">{event.message}</p>
+                                  <p className="text-xs text-muted-foreground mt-2 font-medium">
+                                    Por: {event.author}
+                                  </p>
+                                </>
+                              )}
+                            </Card>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
 
               {/* Fotos */}
               <div>
@@ -2192,6 +2241,202 @@ export default function ChamadosPage() {
                   Cancelar
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Modal de Adicionar Atualização/Parecer */}
+      {addingUpdateToTicket && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <Card className="w-full max-w-lg shadow-2xl border">
+            <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Plus className="w-5 h-5" />
+                  Adicionar Atualização
+                  {addingUpdateToTicket.externalTicketId && (
+                    <span className="text-sm bg-green-600 text-white px-2 py-0.5 rounded-full font-bold">
+                      Nº {addingUpdateToTicket.externalTicketId}
+                    </span>
+                  )}
+                </CardTitle>
+                <p className="text-muted-foreground text-xs mt-1">
+                  {buildings.find(b => b.id === addingUpdateToTicket.buildingId)?.name || 'Prédio não encontrado'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setAddingUpdateToTicket(null);
+                  setNewUpdateType(null);
+                  setNewUpdateMessage('');
+                }}
+                className="hover:bg-muted"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              {/* Seleção do tipo de parecer */}
+              {!newUpdateType ? (
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-foreground mb-2 block">
+                    Selecione o tipo de atualização:
+                  </label>
+                  <div className="grid grid-cols-1 gap-3">
+                    <Button
+                      variant="outline"
+                      className="h-16 flex items-center justify-start gap-4 px-4 border-2 hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                      onClick={() => setNewUpdateType('construtora')}
+                    >
+                      <span className="text-3xl">🏗️</span>
+                      <div className="text-left">
+                        <p className="font-bold text-orange-600 dark:text-orange-400">Parecer da Construtora</p>
+                        <p className="text-xs text-muted-foreground">Retorno ou alegação da construtora</p>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-16 flex items-center justify-start gap-4 px-4 border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      onClick={() => setNewUpdateType('condominio')}
+                    >
+                      <span className="text-3xl">🏢</span>
+                      <div className="text-left">
+                        <p className="font-bold text-blue-600 dark:text-blue-400">Parecer do Condomínio</p>
+                        <p className="text-xs text-muted-foreground">Observação ou resposta do condomínio</p>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-16 flex items-center justify-start gap-4 px-4 border-2 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                      onClick={() => setNewUpdateType('engenharia')}
+                    >
+                      <span className="text-3xl">⚙️</span>
+                      <div className="text-left">
+                        <p className="font-bold text-purple-600 dark:text-purple-400">Parecer da Engenharia</p>
+                        <p className="text-xs text-muted-foreground">Análise técnica ou avaliação</p>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Tipo selecionado */}
+                  <div className={cn("p-3 rounded-lg border-2", UPDATE_TYPE_CONFIG[newUpdateType].bgColor)}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{UPDATE_TYPE_CONFIG[newUpdateType].icon}</span>
+                      <div>
+                        <p className={cn("font-bold", UPDATE_TYPE_CONFIG[newUpdateType].color)}>
+                          {UPDATE_TYPE_CONFIG[newUpdateType].label}
+                        </p>
+                        <button
+                          className="text-xs text-muted-foreground hover:underline"
+                          onClick={() => setNewUpdateType(null)}
+                        >
+                          ← Trocar tipo
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Campo de texto */}
+                  <div>
+                    <label className="text-sm font-semibold text-foreground mb-2 block">
+                      Descrição da atualização *
+                    </label>
+                    <Textarea
+                      value={newUpdateMessage}
+                      onChange={(e) => setNewUpdateMessage(e.target.value)}
+                      placeholder="Digite o parecer ou atualização..."
+                      className="min-h-[150px] resize-none"
+                      autoFocus
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ⚠️ Após salvar, esta atualização não poderá ser apagada. Se errar, adicione uma nova com errata.
+                    </p>
+                  </div>
+
+                  {/* Botões */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      onClick={async () => {
+                        if (!newUpdateMessage.trim()) {
+                          toast.error('Por favor, digite a descrição da atualização!');
+                          return;
+                        }
+
+                        setIsSavingUpdate(true);
+                        try {
+                          const newUpdate: TicketUpdate = {
+                            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            type: newUpdateType,
+                            message: newUpdateMessage.trim(),
+                            createdAt: new Date().toISOString(),
+                            createdBy: user?.name || 'Usuário'
+                          };
+
+                          const currentUpdates = addingUpdateToTicket.updates || [];
+                          const updatedUpdates = [...currentUpdates, newUpdate];
+
+                          await dataService.updateTicket(addingUpdateToTicket.id, {
+                            updates: updatedUpdates
+                          });
+
+                          // Atualizar o ticket local
+                          setTickets(prev => prev.map(t =>
+                            t.id === addingUpdateToTicket.id
+                              ? { ...t, updates: updatedUpdates }
+                              : t
+                          ));
+
+                          // Atualizar o modal de visualização se estiver aberto
+                          if (viewingTicket && viewingTicket.id === addingUpdateToTicket.id) {
+                            setViewingTicket({ ...viewingTicket, updates: updatedUpdates });
+                          }
+
+                          toast.success('Atualização adicionada com sucesso!');
+                          setAddingUpdateToTicket(null);
+                          setNewUpdateType(null);
+                          setNewUpdateMessage('');
+                        } catch (error) {
+                          console.error('Erro ao salvar atualização:', error);
+                          toast.error('Erro ao salvar atualização. Tente novamente.');
+                        } finally {
+                          setIsSavingUpdate(false);
+                        }
+                      }}
+                      disabled={isSavingUpdate || !newUpdateMessage.trim()}
+                      className="flex-1 bg-green-600 hover:bg-green-700 font-bold gap-2"
+                    >
+                      {isSavingUpdate ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Salvar Atualização
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setAddingUpdateToTicket(null);
+                        setNewUpdateType(null);
+                        setNewUpdateMessage('');
+                      }}
+                      variant="outline"
+                      className="flex-1"
+                      disabled={isSavingUpdate}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

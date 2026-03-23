@@ -23,7 +23,8 @@ const mapTicket = (dbTicket: any): Ticket => ({
     engineeringOpinion: dbTicket.engineering_opinion,
     externalTicketId: dbTicket.external_ticket_id,
     isRegistered: dbTicket.is_registered,
-    responsible: dbTicket.responsible
+    responsible: dbTicket.responsible,
+    updates: dbTicket.updates || []
 });
 
 // Helper to map DB user to Frontend user
@@ -363,6 +364,7 @@ export const dataService = {
         if (updates.isRegistered !== undefined) dbUpdates.is_registered = updates.isRegistered;
         if (updates.responsible !== undefined) dbUpdates.responsible = updates.responsible;
         if (updates.createdAt !== undefined) dbUpdates.created_at = updates.createdAt;
+        if (updates.updates !== undefined) dbUpdates.updates = updates.updates;
 
         console.log('🔄 Atualizando ticket no banco:', { ticketId, dbUpdates });
 

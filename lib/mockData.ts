@@ -22,6 +22,16 @@ export interface ReprogrammingEntry {
     updatedAt: string; // Data em que foi atualizado
 }
 
+export type UpdateType = 'construtora' | 'condominio' | 'engenharia';
+
+export interface TicketUpdate {
+    id: string;
+    type: UpdateType;
+    message: string;
+    createdAt: string;
+    createdBy: string; // Nome do usuário que criou
+}
+
 export interface Ticket {
     id: string;
     buildingId: string;
@@ -39,6 +49,7 @@ export interface Ticket {
     externalTicketId?: string;
     isRegistered?: boolean;
     responsible?: 'Condomínio' | 'Construtora';
+    updates?: TicketUpdate[]; // Histórico de atualizações/pareceres
 }
 
 export const MOCK_BUILDINGS: Building[] = [
