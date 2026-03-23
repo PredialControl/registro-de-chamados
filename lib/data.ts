@@ -563,7 +563,7 @@ export const dataService = {
                 let query = supabase
                     .from('tickets')
                     // Buscar TODOS os campos EXCETO photo_urls
-                    .select('id, building_id, user_id, location, description, status, created_at, deadline, reprogramming_date, reprogramming_history, constructor_return, engineering_opinion, external_ticket_id, is_registered, responsible',
+                    .select('id, building_id, user_id, location, description, status, created_at, deadline, reprogramming_date, reprogramming_history, constructor_return, engineering_opinion, external_ticket_id, is_registered, responsible, updates',
                         { count: offset === 0 ? 'exact' : undefined })
                     .eq('building_id', buildingId)
                     .order('id', { ascending: false })
