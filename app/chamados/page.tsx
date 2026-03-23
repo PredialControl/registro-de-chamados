@@ -369,9 +369,9 @@ export default function ChamadosPage() {
       // Cabeçalho
       const headerRow = chamadosSheet.addRow([
         'Nº Chamado',
-        'Criado Por',
-        'Prédio',
         'Local',
+        'Prédio',
+        'Criado Por',
         'Descrição',
         'Status',
         'Abertura',
@@ -401,9 +401,9 @@ export default function ChamadosPage() {
 
         const row = chamadosSheet.addRow([
           ticket.externalTicketId || 'SEM Nº',
-          ticketUser?.name || 'N/A',
-          building?.name || 'N/A',
           ticket.location || '',
+          building?.name || 'N/A',
+          ticketUser?.name || 'N/A',
           ticket.description || '',
           statusLabel,
           ticket.createdAt ? formatDate(ticket.createdAt) : '--',
@@ -438,9 +438,9 @@ export default function ChamadosPage() {
 
       // Largura das colunas
       chamadosSheet.getColumn(1).width = 15;  // Nº Chamado
-      chamadosSheet.getColumn(2).width = 20;  // Criado Por
+      chamadosSheet.getColumn(2).width = 20;  // Local
       chamadosSheet.getColumn(3).width = 25;  // Prédio
-      chamadosSheet.getColumn(4).width = 20;  // Local
+      chamadosSheet.getColumn(4).width = 20;  // Criado Por
       chamadosSheet.getColumn(5).width = 50;  // Descrição
       chamadosSheet.getColumn(6).width = 18;  // Status
       chamadosSheet.getColumn(7).width = 12;  // Abertura
@@ -1455,6 +1455,7 @@ export default function ChamadosPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
+                  <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Nº</th>
                   <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Local</th>
                   <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Descrição</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Foto</th>
@@ -1482,6 +1483,13 @@ export default function ChamadosPage() {
                         isExpired && !hasUnsavedChanges && "border-l-4 border-l-red-600 bg-red-50/30 dark:bg-red-900/10"
                       )}
                     >
+                      {/* COLUNA: Nº CHAMADO */}
+                      <td className="px-3 py-4 text-center border-x border-border/50">
+                        <div className="text-foreground text-xs font-bold">
+                          {ticket.externalTicketId || '-'}
+                        </div>
+                      </td>
+
                       {/* COLUNA: LOCAL */}
                       <td className="px-3 py-4 border-x border-border/50">
                         <div className="text-foreground text-xs truncate max-w-[150px]" title={ticket.location}>
