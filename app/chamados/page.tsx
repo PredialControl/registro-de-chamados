@@ -1780,28 +1780,6 @@ export default function ChamadosPage() {
                       </Select>
                     </div>
 
-                    {/* Retorno da Construtora */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Retorno da Construtora</label>
-                      <Textarea
-                        value={viewingTicket.constructorReturn || ''}
-                        onChange={(e) => setViewingTicket({ ...viewingTicket, constructorReturn: e.target.value })}
-                        placeholder="Resposta/retorno da construtora sobre o chamado..."
-                        className="min-h-[100px] text-sm mt-1"
-                      />
-                    </div>
-
-                    {/* Parecer da Engenharia */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Parecer da Engenharia</label>
-                      <Textarea
-                        value={viewingTicket.engineeringOpinion || ''}
-                        onChange={(e) => setViewingTicket({ ...viewingTicket, engineeringOpinion: e.target.value })}
-                        placeholder="Parecer técnico da engenharia sobre o chamado..."
-                        className="min-h-[100px] text-sm mt-1"
-                      />
-                    </div>
-
                     {/* Botão Salvar */}
                     <Button
                       onClick={async () => {
