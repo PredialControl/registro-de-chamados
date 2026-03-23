@@ -1914,7 +1914,29 @@ export default function ChamadosPage() {
                       author: ticketUser?.name || 'Usuário'
                     });
 
-                    // 2. Histórico de reprogramações
+                    // 2. Retorno da Construtora (campo antigo)
+                    if (viewingTicket.constructorReturn) {
+                      events.push({
+                        id: 'construtora-antigo',
+                        date: viewingTicket.createdAt, // Usar data de criação como fallback
+                        type: 'construtora',
+                        message: viewingTicket.constructorReturn,
+                        author: 'Construtora'
+                      });
+                    }
+
+                    // 3. Parecer da Engenharia (campo antigo)
+                    if (viewingTicket.engineeringOpinion) {
+                      events.push({
+                        id: 'engenharia-antigo',
+                        date: viewingTicket.createdAt, // Usar data de criação como fallback
+                        type: 'engenharia',
+                        message: viewingTicket.engineeringOpinion,
+                        author: 'Engenharia'
+                      });
+                    }
+
+                    // 4. Histórico de reprogramações
                     if (viewingTicket.reprogrammingHistory) {
                       viewingTicket.reprogrammingHistory.forEach((item, index) => {
                         events.push({
@@ -1927,7 +1949,7 @@ export default function ChamadosPage() {
                       });
                     }
 
-                    // 3. Atualizações/Pareceres
+                    // 5. Atualizações/Pareceres
                     if (viewingTicket.updates) {
                       viewingTicket.updates.forEach(update => {
                         events.push({
