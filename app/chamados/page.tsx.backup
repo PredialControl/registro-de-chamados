@@ -63,10 +63,6 @@ export default function ChamadosPage() {
   const [viewingTicket, setViewingTicket] = useState<Ticket | null>(null);
   const [viewingTicketPhotos, setViewingTicketPhotos] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
-  const [originalDeadline, setOriginalDeadline] = useState<string | undefined>(undefined);
-  const [deadlineChangeReason, setDeadlineChangeReason] = useState<string>('');
-  const [originalResponsible, setOriginalResponsible] = useState<string | undefined>(undefined);
-  const [responsibleChangeReason, setResponsibleChangeReason] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(50);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
@@ -80,11 +76,6 @@ export default function ChamadosPage() {
   const [reprogrammingDate, setReprogrammingDate] = useState<string>('');
   const [reprogrammingReason, setReprogrammingReason] = useState<string>('');
   const [viewingHistoryTicket, setViewingHistoryTicket] = useState<Ticket | null>(null);
-
-  // Modal de mudança de responsável (Construtora -> Condomínio)
-  const [responsibleChangeTicket, setResponsibleChangeTicket] = useState<Ticket | null>(null);
-  const [responsibleChangeNewValue, setResponsibleChangeNewValue] = useState<'Construtora' | 'Condomínio'>('Condomínio');
-  const [responsibleChangeReasonModal, setResponsibleChangeReasonModal] = useState<string>('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -111,11 +102,6 @@ export default function ChamadosPage() {
     const loadPhotos = async () => {
       if (viewingTicket && viewingTicket.id) {
         setLoadingPhotos(true);
-        // Salvar valores originais quando abre o modal
-        setOriginalDeadline(viewingTicket.deadline);
-        setDeadlineChangeReason('');
-        setOriginalResponsible(viewingTicket.responsible);
-        setResponsibleChangeReason('');
         try {
           const photos = await dataService.getTicketPhotos(viewingTicket.id);
           setViewingTicketPhotos(photos);
@@ -127,10 +113,6 @@ export default function ChamadosPage() {
         }
       } else {
         setViewingTicketPhotos([]);
-        setOriginalDeadline(undefined);
-        setDeadlineChangeReason('');
-        setOriginalResponsible(undefined);
-        setResponsibleChangeReason('');
       }
     };
     loadPhotos();
@@ -373,7 +355,7 @@ export default function ChamadosPage() {
         'Prédio',
         'Local',
         'Descrição',
-        'Status',
+        'Situação',
         'Abertura',
         'Prazo',
         'Reprogramação',
@@ -431,8 +413,7 @@ export default function ChamadosPage() {
 
         // Alinhamento vertical centralizado (sem wrap text)
         row.eachCell((cell) => {
-          const colNum = typeof cell.col === 'number' ? cell.col : parseInt(cell.col as string);
-          cell.alignment = { vertical: 'middle', horizontal: colNum === 5 ? 'center' : 'left' };
+          cell.alignment = { vertical: 'middle', horizontal: cell.col === 5 ? 'center' : 'left' };
         });
       });
 
@@ -442,7 +423,7 @@ export default function ChamadosPage() {
       chamadosSheet.getColumn(3).width = 25;  // Prédio
       chamadosSheet.getColumn(4).width = 20;  // Local
       chamadosSheet.getColumn(5).width = 50;  // Descrição
-      chamadosSheet.getColumn(6).width = 18;  // Status
+      chamadosSheet.getColumn(6).width = 18;  // Situação
       chamadosSheet.getColumn(7).width = 12;  // Abertura
       chamadosSheet.getColumn(8).width = 12;  // Prazo
       chamadosSheet.getColumn(9).width = 15;  // Reprogramação
@@ -666,59 +647,6 @@ export default function ChamadosPage() {
     } catch (error) {
       console.error('Erro ao remover reprogramação:', error);
       toast.error('Erro ao remover reprogramação');
-    }
-  };
-
-  // Função para salvar mudança de responsável via modal
-  const saveResponsibleChange = async () => {
-    if (!responsibleChangeTicket || !responsibleChangeReasonModal.trim()) {
-      toast.error('Por favor, informe o motivo da mudança de responsável!');
-      return;
-    }
-
-    try {
-      const now = new Date().toLocaleString('pt-BR');
-      const previousResponsible = responsibleChangeTicket.responsible || 'Construtora';
-
-      // Criar log da mudança para o parecer da engenharia
-      const changeLog = `--- Mudança de Responsável [${now}] ---\nResponsável anterior: ${previousResponsible}\nNovo responsável: ${responsibleChangeNewValue}\nMotivo: ${responsibleChangeReasonModal}\n----------------------------`;
-
-      // Adicionar ao parecer existente (se houver)
-      const updatedEngineeringOpinion = responsibleChangeTicket.engineeringOpinion
-        ? `${responsibleChangeTicket.engineeringOpinion}\n\n${changeLog}`
-        : changeLog;
-
-      await dataService.updateTicket(responsibleChangeTicket.id, {
-        responsible: responsibleChangeNewValue,
-        engineeringOpinion: updatedEngineeringOpinion
-      });
-
-      // Fechar modal e limpar
-      setResponsibleChangeTicket(null);
-      setResponsibleChangeNewValue('Condomínio');
-      setResponsibleChangeReasonModal('');
-
-      // Atualizar também o viewingTicket se estiver aberto
-      if (viewingTicket?.id === responsibleChangeTicket.id) {
-        setViewingTicket({
-          ...viewingTicket,
-          responsible: responsibleChangeNewValue,
-          engineeringOpinion: updatedEngineeringOpinion
-        });
-        setOriginalResponsible(responsibleChangeNewValue);
-      }
-
-      // Recarregar dados
-      if (selectedBuilding !== 'todos') {
-        await loadTicketsForBuilding();
-      } else {
-        await loadAllTickets();
-      }
-
-      toast.success('Responsável alterado com sucesso!');
-    } catch (error) {
-      console.error('Erro ao alterar responsável:', error);
-      toast.error('Erro ao alterar responsável');
     }
   };
 
@@ -1461,7 +1389,7 @@ export default function ChamadosPage() {
                   <th className="px-3 py-4 text-left font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Criado Por</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Abertura</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Responsável</th>
-                  <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Status</th>
+                  <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Situação</th>
                   <th className="px-3 py-4 text-center font-bold text-foreground uppercase text-xs tracking-wider border-x border-border/50">Ações</th>
                 </tr>
               </thead>
@@ -1482,25 +1410,471 @@ export default function ChamadosPage() {
                         isExpired && !hasUnsavedChanges && "border-l-4 border-l-red-600 bg-red-50/30 dark:bg-red-900/10"
                       )}
                     >
-                      {/* COLUNA: LOCAL */}
-                      <td className="px-3 py-4 border-x border-border/50">
-                        <div className="text-foreground text-xs truncate max-w-[150px]" title={ticket.location}>
-                          {ticket.location}
+                      <td className="px-3 py-4 font-bold text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {editingTicketNumberId === ticket.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              value={editingTicketNumberValue}
+                              onChange={e => setEditingTicketNumberValue(e.target.value)}
+                              placeholder="Número..."
+                              className="h-7 text-xs w-24 px-1.5"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveTicketNumber(ticket.id);
+                                if (e.key === 'Escape') {
+                                  setEditingTicketNumberId(null);
+                                  setEditingTicketNumberValue('');
+                                }
+                              }}
+                            />
+                            <Button
+                              size="icon-sm"
+                              onClick={() => handleSaveTicketNumber(ticket.id)}
+                              className="h-7 w-7 bg-green-600 hover:bg-green-700"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingTicketNumberId(null);
+                                setEditingTicketNumberValue('');
+                              }}
+                              className="h-7 w-7"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            {ticket.externalTicketId ? (
+                              <span className="text-blue-600 dark:text-blue-400">{ticket.externalTicketId}</span>
+                            ) : (
+                              <span className="text-red-600 dark:text-red-500 tracking-widest font-black text-[10px]">SEM Nº</span>
+                            )}
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingTicketNumberId(ticket.id);
+                                  setEditingTicketNumberValue(ticket.externalTicketId || '');
+                                }}
+                                className="text-muted-foreground hover:text-blue-600 transition-colors"
+                                title={ticket.externalTicketId ? "Editar número" : "Adicionar número"}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4 text-xs border-x border-border/50">
+                        <div className="text-foreground font-medium truncate max-w-[120px]" title={ticketUser?.name || 'Desconhecido'}>
+                          {ticketUser?.name || 'N/A'}
                         </div>
                       </td>
 
-                      {/* COLUNA: DESCRIÇÃO */}
-                      <td className="px-3 py-4 border-x border-border/50">
-                        <div className="text-muted-foreground text-xs line-clamp-2 cursor-help max-w-[250px]" title={ticket.description}>
-                          {ticket.description}
-                        </div>
+                      <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Input
+                            value={batchEdits.get(ticket.id)?.location || ticket.location || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, location: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
+                            placeholder="Local..."
+                            className="h-8 text-xs"
+                          />
+                        ) : (
+                          <div className="text-foreground text-xs truncate max-w-[120px]" title={ticket.location}>{ticket.location}</div>
+                        )}
                       </td>
 
-                      {/* COLUNA: FOTO */}
+                      <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Textarea
+                            value={batchEdits.get(ticket.id)?.description || ticket.description || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, description: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
+                            placeholder="Descrição..."
+                            className="min-h-[60px] text-xs resize-none"
+                          />
+                        ) : (
+                          <div className="text-muted-foreground text-xs line-clamp-2 cursor-help" title={ticket.description}>
+                            {ticket.description}
+                          </div>
+                        )}
+                      </td>
+
                       <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-center">
+                        {isAdmin ? (
+                          <Select
+                            value={batchEdits.get(ticket.id)?.status || ticket.status}
+                            onValueChange={(value) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, status: value as Ticket['status'] });
+                              setBatchEdits(newEdits);
+                            }}
+                          >
+                            <SelectTrigger className={cn(
+                              "h-8 text-xs border-none shadow-none",
+                              statusConfig.color,
+                              "hover:brightness-95 transition-all"
+                            )}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                                <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className={cn(
+                            "inline-block px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap",
+                            statusConfig.color
+                          )}>
+                            {statusConfig.label}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4 text-center text-muted-foreground text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {editingCreatedAtId === ticket.id ? (
+                          <div className="flex items-center gap-1 justify-center">
+                            <Input
+                              type="date"
+                              value={editingCreatedAtValue}
+                              onChange={e => setEditingCreatedAtValue(e.target.value)}
+                              className="h-7 text-xs w-32 px-1.5"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveCreatedAt(ticket.id);
+                                if (e.key === 'Escape') {
+                                  setEditingCreatedAtId(null);
+                                  setEditingCreatedAtValue('');
+                                }
+                              }}
+                            />
+                            <Button
+                              size="icon-sm"
+                              onClick={() => handleSaveCreatedAt(ticket.id)}
+                              className="h-7 w-7 bg-green-600 hover:bg-green-700"
+                            >
+                              <Save className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="icon-sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingCreatedAtId(null);
+                                setEditingCreatedAtValue('');
+                              }}
+                              className="h-7 w-7"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 justify-center">
+                            <span>{formatDate(ticket.createdAt)}</span>
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCreatedAtId(ticket.id);
+                                  setEditingCreatedAtValue(ticket.createdAt || '');
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-accent rounded"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <div className="space-y-1">
+                            <Input
+                              type="date"
+                              value={batchEdits.get(ticket.id)?.deadline || ticket.deadline || ''}
+                              onChange={(e) => {
+                                const currentEdit = batchEdits.get(ticket.id) || {
+                                  buildingId: ticket.buildingId,
+                                  location: ticket.location,
+                                  description: ticket.description,
+                                  status: ticket.status,
+                                  deadline: ticket.deadline,
+                                  reprogrammingDate: ticket.reprogrammingDate,
+                                  constructorReturn: ticket.constructorReturn,
+                                  engineeringOpinion: ticket.engineeringOpinion,
+                                  responsible: ticket.responsible,
+                                };
+                                const newEdits = new Map(batchEdits);
+                                newEdits.set(ticket.id, { ...currentEdit, deadline: e.target.value || undefined });
+                                setBatchEdits(newEdits);
+                              }}
+                              className={cn(
+                                "h-8 text-xs text-center font-medium",
+                                isDeadlineExpired(ticket)
+                                  ? "text-red-600 dark:text-red-400 border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-900/20"
+                                  : "text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                              )}
+                            />
+                            {isDeadlineExpired(ticket) && (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded-full border border-red-300 dark:border-red-700 animate-pulse">
+                                  ⚠️ VENCIDO
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className={cn(
+                              "font-medium text-xs",
+                              isDeadlineExpired(ticket)
+                                ? "text-red-600 dark:text-red-400 font-bold"
+                                : "text-blue-600 dark:text-blue-400"
+                            )}>
+                              {ticket.deadline ? formatDate(ticket.deadline) : '--'}
+                            </div>
+                            {isDeadlineExpired(ticket) && (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded-full border border-red-300 dark:border-red-700 animate-pulse">
+                                  ⚠️ VENCIDO
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        <div className="space-y-1">
+                          {isAdmin ? (
+                            <div className="flex flex-col gap-1 items-center">
+                              {ticket.reprogrammingDate ? (
+                                <>
+                                  <div className="text-orange-600 dark:text-orange-400 font-bold text-xs">
+                                    {formatDate(ticket.reprogrammingDate)}
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setReprogrammingTicket(ticket);
+                                        setReprogrammingDate(ticket.reprogrammingDate || '');
+                                        setReprogrammingReason('');
+                                      }}
+                                      size="sm"
+                                      className="h-6 text-[10px] px-2 bg-blue-600 hover:bg-blue-700 font-bold"
+                                      title="Adicionar nova reprogramação"
+                                    >
+                                      ➕ Nova
+                                    </Button>
+                                    <Button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeReprogramming(ticket.id);
+                                      }}
+                                      size="sm"
+                                      variant="destructive"
+                                      className="h-6 text-[10px] px-2 font-bold"
+                                      title="Remover reprogramação atual"
+                                    >
+                                      🗑️ Remover
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReprogrammingTicket(ticket);
+                                    setReprogrammingDate('');
+                                    setReprogrammingReason('');
+                                  }}
+                                  size="sm"
+                                  className="h-7 text-xs bg-orange-600 hover:bg-orange-700 font-bold"
+                                  title="Adicionar reprogramação com motivo"
+                                >
+                                  📅 Reprogramar
+                                </Button>
+                              )}
+                            </div>
+                          ) : (
+                            <>
+                              {ticket.reprogrammingDate && (
+                                <div className="text-orange-600 dark:text-orange-400 font-bold text-xs">
+                                  {formatDate(ticket.reprogrammingDate)}
+                                </div>
+                              )}
+                            </>
+                          )}
+                          {ticket.reprogrammingHistory && ticket.reprogrammingHistory.length > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingHistoryTicket(ticket);
+                              }}
+                              className="flex justify-center items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium cursor-pointer hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                              title="Clique para ver histórico completo"
+                            >
+                              <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center font-bold text-[10px]">!</span>
+                              Reprogramado {ticket.reprogrammingHistory.length}x
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-3 py-4 text-muted-foreground text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Textarea
+                            value={batchEdits.get(ticket.id)?.constructorReturn || ticket.constructorReturn || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, constructorReturn: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
+                            placeholder="Retorno da construtora..."
+                            className="min-h-[60px] text-xs resize-none"
+                          />
+                        ) : (
+                          <div className="max-w-[250px] text-xs">
+                            <div className="truncate cursor-help" title={ticket.constructorReturn || ''}>
+                              {ticket.constructorReturn || '--'}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4 text-muted-foreground text-xs border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Textarea
+                            value={batchEdits.get(ticket.id)?.engineeringOpinion || ticket.engineeringOpinion || ''}
+                            onChange={(e) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, engineeringOpinion: e.target.value });
+                              setBatchEdits(newEdits);
+                            }}
+                            placeholder="Parecer da engenharia..."
+                            className="min-h-[60px] text-xs resize-none"
+                          />
+                        ) : (
+                          <div className="max-w-[250px] text-xs">
+                            <div className="truncate cursor-help" title={ticket.engineeringOpinion || ''}>
+                              {ticket.engineeringOpinion || '--'}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4 text-center border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <Select
+                            value={batchEdits.get(ticket.id)?.responsible || ticket.responsible || 'none'}
+                            onValueChange={(value) => {
+                              const currentEdit = batchEdits.get(ticket.id) || {
+                                buildingId: ticket.buildingId,
+                                location: ticket.location,
+                                description: ticket.description,
+                                status: ticket.status,
+                                deadline: ticket.deadline,
+                                reprogrammingDate: ticket.reprogrammingDate,
+                                constructorReturn: ticket.constructorReturn,
+                                engineeringOpinion: ticket.engineeringOpinion,
+                                responsible: ticket.responsible,
+                              };
+                              const newEdits = new Map(batchEdits);
+                              newEdits.set(ticket.id, { ...currentEdit, responsible: value === 'none' ? undefined : value as 'Condomínio' | 'Construtora' });
+                              setBatchEdits(newEdits);
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs border border-border/50 hover:border-blue-400 transition-colors">
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">--</SelectItem>
+                              <SelectItem value="Condomínio">Condomínio</SelectItem>
+                              <SelectItem value="Construtora">Construtora</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="text-xs font-medium">
+                            {ticket.responsible || 'Construtora'}
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                        {/* Fotos carregadas sob demanda - mostrar botão para ver */}
+                        <div className="flex flex-col items-center gap-1">
                           <button
-                            className="relative w-12 h-12 rounded-md border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all flex items-center justify-center bg-muted hover:bg-muted/80"
+                            className="relative w-16 h-16 rounded-md border border-border cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all flex items-center justify-center bg-muted hover:bg-muted/80"
                             onClick={async () => {
                               const photos = await dataService.getTicketPhotos(ticket.id);
                               const ticketWithPhotos = { ...ticket, photoUrls: photos };
@@ -1508,54 +1882,14 @@ export default function ChamadosPage() {
                             }}
                             title="Clique para ver as fotos"
                           >
-                            <Camera className="w-5 h-5 text-muted-foreground" />
+                            <Camera className="w-6 h-6 text-muted-foreground" />
                           </button>
                         </div>
                       </td>
 
-                      {/* COLUNA: CRIADO POR */}
-                      <td className="px-3 py-4 text-xs border-x border-border/50">
-                        <div className="text-foreground font-medium truncate max-w-[120px]" title={ticketUser?.name || 'Desconhecido'}>
-                          {ticketUser?.name || 'N/A'}
-                        </div>
-                      </td>
-
-                      {/* COLUNA: ABERTURA */}
-                      <td className="px-3 py-4 text-center text-muted-foreground text-xs border-x border-border/50">
-                        <span>{formatDate(ticket.createdAt)}</span>
-                      </td>
-
-                      {/* COLUNA: RESPONSÁVEL */}
-                      <td className="px-3 py-4 text-center border-x border-border/50">
-                        <div className="text-xs font-medium">
-                          {ticket.responsible || 'Construtora'}
-                        </div>
-                      </td>
-
-                      {/* COLUNA: SITUAÇÃO */}
-                      <td className="px-3 py-4 text-center border-x border-border/50">
-                        <span className={cn(
-                          "inline-block px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap",
-                          statusConfig.color
-                        )}>
-                          {statusConfig.label}
-                        </span>
-                      </td>
-
-                      {/* COLUNA: AÇÕES */}
-                      <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setViewingTicket(ticket);
-                            }}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                            title="Ver detalhes"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          {isAdmin && (
+                      {isAdmin && (
+                        <td className="px-3 py-4 border-x border-border/50" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-center">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1566,9 +1900,9 @@ export default function ChamadosPage() {
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
-                          )}
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -1617,278 +1951,59 @@ export default function ChamadosPage() {
                 <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{viewingTicket.description || '--'}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Número do Chamado */}
-                <div>
-                  <label className="text-sm font-semibold text-foreground">Número do Chamado</label>
-                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-1 font-bold">
-                    {viewingTicket.externalTicketId || 'SEM Nº'}
-                  </p>
-                </div>
-
-                {/* Criado Por */}
-                <div>
-                  <label className="text-sm font-semibold text-foreground">Criado Por</label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {users.find(u => u.id === viewingTicket.userId)?.name || 'N/A'}
-                  </p>
+              {/* Status */}
+              <div>
+                <label className="text-sm font-semibold text-foreground">Status</label>
+                <div className="mt-1">
+                  <span className={cn(
+                    "inline-block px-3 py-1 rounded-full text-xs font-medium",
+                    STATUS_CONFIG[viewingTicket.status].color
+                  )}>
+                    {STATUS_CONFIG[viewingTicket.status].label}
+                  </span>
                 </div>
               </div>
 
-              {isAdmin && (
-                <div className="border-t border-border pt-4 mt-4">
-                  <h3 className="text-sm font-bold text-foreground mb-3">📝 Editar Chamado</h3>
-
-                  <div className="space-y-4">
-                    {/* Responsável */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Responsável</label>
-                      <Select
-                        value={viewingTicket.responsible || 'Construtora'}
-                        onValueChange={(value) => {
-                          const currentResponsible = viewingTicket.responsible || 'Construtora';
-                          const newValue = value as 'Condomínio' | 'Construtora';
-
-                          // Se está mudando de um valor para outro diferente, abre o modal
-                          if (currentResponsible !== newValue) {
-                            console.log('🔄 DEBUG - Abrindo modal de mudança de responsável de', currentResponsible, 'para', newValue);
-                            setResponsibleChangeTicket(viewingTicket);
-                            setResponsibleChangeNewValue(newValue);
-                            setResponsibleChangeReasonModal('');
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="h-10 text-sm mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="z-[9999]">
-                          <SelectItem value="Construtora">Construtora</SelectItem>
-                          <SelectItem value="Condomínio">Condomínio</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Prazo */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Prazo de Conclusão</label>
-                      <Input
-                        type="date"
-                        value={viewingTicket.deadline || ''}
-                        onChange={(e) => {
-                          setViewingTicket({ ...viewingTicket, deadline: e.target.value });
-                        }}
-                        className={cn(
-                          "h-10 text-sm mt-1",
-                          isDeadlineExpired(viewingTicket)
-                            ? "border-red-500 text-red-600 dark:text-red-400"
-                            : "border-blue-300 text-blue-600 dark:text-blue-400"
-                        )}
-                      />
-                      {isDeadlineExpired(viewingTicket) && (
-                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">⚠️ Prazo vencido!</p>
-                      )}
-                    </div>
-
-                    {/* Motivo da mudança de prazo */}
-                    {originalDeadline !== viewingTicket.deadline && viewingTicket.deadline && (
-                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-300 dark:border-yellow-700">
-                        <label className="text-sm font-semibold text-yellow-800 dark:text-yellow-400">
-                          ⚠️ Motivo da Mudança de Prazo (Obrigatório)
-                        </label>
-                        <Textarea
-                          value={deadlineChangeReason}
-                          onChange={(e) => setDeadlineChangeReason(e.target.value)}
-                          placeholder={`Prazo anterior: ${originalDeadline ? formatDate(originalDeadline) : 'Não definido'}\nNovo prazo: ${formatDate(viewingTicket.deadline)}\n\nExplique o motivo da mudança...`}
-                          className="min-h-[80px] text-sm mt-2"
-                        />
-                      </div>
-                    )}
-
-                    {/* Status - muda conforme responsável */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Status</label>
-                      <Select
-                        value={viewingTicket.status}
-                        onValueChange={(value) => {
-                          setViewingTicket({ ...viewingTicket, status: value as Ticket['status'] });
-                        }}
-                      >
-                        <SelectTrigger className={cn("h-10 text-sm mt-1", STATUS_CONFIG[viewingTicket.status].color)}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="z-[9999]">
-                          {viewingTicket.responsible === 'Condomínio' ? (
-                            <>
-                              <SelectItem value="aguardando_vistoria">Aguardando</SelectItem>
-                              <SelectItem value="em_andamento">Programado</SelectItem>
-                              <SelectItem value="concluido">Executado</SelectItem>
-                            </>
-                          ) : (
-                            <>
-                              <SelectItem value="aguardando_vistoria">Aguardando Vistoria</SelectItem>
-                              <SelectItem value="em_andamento">Programado</SelectItem>
-                              <SelectItem value="concluido">Executado</SelectItem>
-                              <SelectItem value="improcedente">Improcedente</SelectItem>
-                              <SelectItem value="f_indevido">Fechado Indevido</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Retorno da Construtora */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Retorno da Construtora</label>
-                      <Textarea
-                        value={viewingTicket.constructorReturn || ''}
-                        onChange={(e) => setViewingTicket({ ...viewingTicket, constructorReturn: e.target.value })}
-                        placeholder="Digite o retorno da construtora..."
-                        className="min-h-[80px] text-sm mt-1"
-                      />
-                    </div>
-
-                    {/* Parecer da Engenharia */}
-                    <div>
-                      <label className="text-sm font-semibold text-purple-600 dark:text-purple-400">Parecer da Engenharia</label>
-                      <Textarea
-                        value={viewingTicket.engineeringOpinion || ''}
-                        onChange={(e) => setViewingTicket({ ...viewingTicket, engineeringOpinion: e.target.value })}
-                        placeholder="Digite o parecer da engenharia..."
-                        className="min-h-[80px] text-sm mt-1"
-                      />
-                    </div>
-
-                    {/* Botão Salvar */}
-                    <Button
-                      onClick={async () => {
-                        // LOG DE DEBUG
-                        console.log('🔍 DEBUG - Estado atual do viewingTicket:', {
-                          id: viewingTicket.id,
-                          responsible: viewingTicket.responsible,
-                          status: viewingTicket.status,
-                          deadline: viewingTicket.deadline
-                        });
-
-                        // Validar se mudou o prazo e tem motivo
-                        if (originalDeadline !== viewingTicket.deadline && viewingTicket.deadline && !deadlineChangeReason.trim()) {
-                          toast.error('Por favor, informe o motivo da mudança de prazo!');
-                          return;
-                        }
-
-                        // Preparar o retorno da construtora com histórico de mudanças de prazo
-                        let updatedConstructorReturn = viewingTicket.constructorReturn || '';
-
-                        if (originalDeadline !== viewingTicket.deadline && viewingTicket.deadline && deadlineChangeReason.trim()) {
-                          const now = new Date().toLocaleString('pt-BR');
-                          const changeLog = `\n\n--- Mudança de Prazo [${now}] ---\nPrazo anterior: ${originalDeadline ? formatDate(originalDeadline) : 'Não definido'}\nNovo prazo: ${formatDate(viewingTicket.deadline)}\nMotivo: ${deadlineChangeReason}\n----------------------------`;
-                          updatedConstructorReturn = updatedConstructorReturn + changeLog;
-                        }
-
-                        const updatePayload = {
-                          status: viewingTicket.status,
-                          deadline: viewingTicket.deadline,
-                          constructorReturn: updatedConstructorReturn,
-                          engineeringOpinion: viewingTicket.engineeringOpinion,
-                        };
-
-                        console.log('📤 DEBUG - Payload de atualização:', updatePayload);
-
-                        try {
-                          await dataService.updateTicket(viewingTicket.id, updatePayload);
-                          toast.success('Chamado atualizado com sucesso!');
-                          setViewingTicket(null);
-                          setOriginalDeadline(undefined);
-                          setDeadlineChangeReason('');
-                          setOriginalResponsible(undefined);
-                          setResponsibleChangeReason('');
-                          loadTicketsForBuilding();
-                        } catch (error) {
-                          console.error('Erro ao atualizar:', error);
-                          toast.error('Erro ao atualizar chamado. Tente novamente.');
-                        }
-                      }}
-                      className="w-full bg-green-600 hover:bg-green-700"
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      Salvar Alterações
-                    </Button>
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Data de Criação */}
+                <div>
+                  <label className="text-sm font-semibold text-foreground">Data de Criação</label>
+                  <p className="text-sm text-muted-foreground mt-1">{formatDate(viewingTicket.createdAt)}</p>
                 </div>
-              )}
 
-              {!isAdmin && (
-                <>
-                  {/* Status */}
+                {/* Prazo */}
+                <div>
+                  <label className="text-sm font-semibold text-foreground">Prazo</label>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-1 font-medium">
+                    {viewingTicket.deadline ? formatDate(viewingTicket.deadline) : '--'}
+                  </p>
+                </div>
+
+                {/* Data de Reprogramação */}
+                {viewingTicket.reprogrammingDate && (
                   <div>
-                    <label className="text-sm font-semibold text-foreground">Status</label>
-                    <div className="mt-1">
-                      <span className={cn(
-                        "inline-block px-3 py-1 rounded-full text-xs font-medium",
-                        STATUS_CONFIG[viewingTicket.status].color
-                      )}>
-                        {STATUS_CONFIG[viewingTicket.status].label}
-                      </span>
-                    </div>
+                    <label className="text-sm font-semibold text-foreground">Reprogramado para</label>
+                    <p className="text-sm text-orange-600 dark:text-orange-400 mt-1 font-medium">
+                      {formatDate(viewingTicket.reprogrammingDate)}
+                    </p>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Data de Abertura */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Data de Abertura</label>
-                      <p className="text-sm text-muted-foreground mt-1">{formatDate(viewingTicket.createdAt)}</p>
-                    </div>
-
-                    {/* Prazo */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Prazo de Conclusão</label>
-                      <p className={cn(
-                        "text-sm mt-1 font-medium",
-                        isDeadlineExpired(viewingTicket)
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-blue-600 dark:text-blue-400"
-                      )}>
-                        {viewingTicket.deadline ? formatDate(viewingTicket.deadline) : '--'}
-                        {isDeadlineExpired(viewingTicket) && (
-                          <span className="ml-2 text-[10px] bg-red-100 dark:bg-red-900/40 px-2 py-0.5 rounded-full border border-red-300 dark:border-red-700">
-                            ⚠️ VENCIDO
-                          </span>
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Responsável */}
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Responsável</label>
-                      <p className="text-sm text-muted-foreground mt-1">{viewingTicket.responsible || 'Construtora'}</p>
-                    </div>
-
-                    {/* Data de Reprogramação */}
-                    {viewingTicket.reprogrammingDate && (
-                      <div>
-                        <label className="text-sm font-semibold text-foreground">Reprogramado para</label>
-                        <p className="text-sm text-orange-600 dark:text-orange-400 mt-1 font-medium">
-                          {formatDate(viewingTicket.reprogrammingDate)}
-                        </p>
-                      </div>
-                    )}
+                {/* Responsável */}
+                {viewingTicket.responsible && (
+                  <div>
+                    <label className="text-sm font-semibold text-foreground">Responsável</label>
+                    <p className="text-sm text-muted-foreground mt-1">{viewingTicket.responsible}</p>
                   </div>
+                )}
+              </div>
 
-                  {/* Retorno da Construtora */}
-                  {viewingTicket.constructorReturn && (
-                    <div>
-                      <label className="text-sm font-semibold text-foreground">Retorno da Construtora</label>
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{viewingTicket.constructorReturn}</p>
-                    </div>
-                  )}
-
-                  {/* Parecer da Engenharia */}
-                  {viewingTicket.engineeringOpinion && (
-                    <div>
-                      <label className="text-sm font-semibold text-purple-600 dark:text-purple-400">Parecer da Engenharia</label>
-                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{viewingTicket.engineeringOpinion}</p>
-                    </div>
-                  )}
-                </>
+              {/* Retorno da Construtora */}
+              {viewingTicket.constructorReturn && (
+                <div>
+                  <label className="text-sm font-semibold text-foreground">Retorno da Construtora</label>
+                  <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{viewingTicket.constructorReturn}</p>
+                </div>
               )}
 
               {/* Histórico de Reprogramações */}
@@ -2081,102 +2196,6 @@ export default function ChamadosPage() {
                     setReprogrammingTicket(null);
                     setReprogrammingDate('');
                     setReprogrammingReason('');
-                  }}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Modal de Mudança de Responsável */}
-      {responsibleChangeTicket && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <Card className="w-full max-w-lg shadow-2xl border">
-            <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
-              <div className="flex-1">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  🔄 Mudança de Responsável
-                  {responsibleChangeTicket.externalTicketId && (
-                    <span className="text-sm bg-purple-600 text-white px-2 py-0.5 rounded-full font-bold">
-                      Nº {responsibleChangeTicket.externalTicketId}
-                    </span>
-                  )}
-                </CardTitle>
-                <p className="text-muted-foreground text-xs mt-1">
-                  {buildings.find(b => b.id === responsibleChangeTicket.buildingId)?.name || 'Prédio não encontrado'}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setResponsibleChangeTicket(null);
-                  setResponsibleChangeNewValue('Condomínio');
-                  setResponsibleChangeReasonModal('');
-                }}
-                className="hover:bg-muted"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              {/* Informação da mudança */}
-              <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-700">
-                <div className="flex items-center justify-between">
-                  <div className="text-center flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">De</p>
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400">
-                      {responsibleChangeTicket.responsible || 'Construtora'}
-                    </p>
-                  </div>
-                  <div className="px-4">
-                    <span className="text-2xl">➔</span>
-                  </div>
-                  <div className="text-center flex-1">
-                    <p className="text-xs text-muted-foreground mb-1">Para</p>
-                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {responsibleChangeNewValue}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Motivo da Mudança */}
-              <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Motivo da Mudança de Responsável *
-                </label>
-                <Textarea
-                  value={responsibleChangeReasonModal}
-                  onChange={(e) => setResponsibleChangeReasonModal(e.target.value)}
-                  placeholder="Descreva o motivo da mudança de responsável..."
-                  className="min-h-[120px] resize-none"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  💡 Este motivo será automaticamente adicionado ao campo "Parecer da Engenharia" com data e hora
-                </p>
-              </div>
-
-              {/* Botões */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  onClick={saveResponsibleChange}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 font-bold gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Confirmar Mudança
-                </Button>
-                <Button
-                  onClick={() => {
-                    setResponsibleChangeTicket(null);
-                    setResponsibleChangeNewValue('Condomínio');
-                    setResponsibleChangeReasonModal('');
                   }}
                   variant="outline"
                   className="flex-1"
