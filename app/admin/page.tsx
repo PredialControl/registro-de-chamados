@@ -42,6 +42,8 @@ export default function AdminPage() {
   const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedTicketForGallery, setSelectedTicketForGallery] = useState<Ticket | null>(null);
+  const [editingTicketNumberInGallery, setEditingTicketNumberInGallery] = useState(false);
+  const [galleryTicketNumberValue, setGalleryTicketNumberValue] = useState('');
 
   // Building form
   const [buildingName, setBuildingName] = useState('');
@@ -164,6 +166,32 @@ export default function AdminPage() {
       });
       setEditingTicketNumberId(null);
       setEditingTicketNumberValue('');
+      await loadData();
+      toast.success('Número atualizado!');
+    } catch (error) {
+      console.error('Erro ao atualizar número:', error);
+      toast.error('Erro ao atualizar número do chamado');
+    }
+  };
+
+  const handleSaveTicketNumberInGallery = async () => {
+    if (!selectedTicketForGallery) return;
+    if (!galleryTicketNumberValue.trim()) {
+      toast.error('Informe o número do chamado');
+      return;
+    }
+    try {
+      await dataService.updateTicket(selectedTicketForGallery.id, {
+        externalTicketId: galleryTicketNumberValue,
+        isRegistered: true
+      });
+      // Atualiza o ticket no modal
+      setSelectedTicketForGallery({
+        ...selectedTicketForGallery,
+        externalTicketId: galleryTicketNumberValue,
+        isRegistered: true
+      });
+      setEditingTicketNumberInGallery(false);
       await loadData();
       toast.success('Número atualizado!');
     } catch (error) {
@@ -878,6 +906,64 @@ export default function AdminPage() {
                   <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Local:</span>
                   <p className="text-zinc-400 text-[11px]">{selectedTicketForGallery.location}</p>
                 </div>
+                {/* Número do Chamado - Editável */}
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Nº Chamado:</span>
+                  {editingTicketNumberInGallery ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={galleryTicketNumberValue}
+                        onChange={e => setGalleryTicketNumberValue(e.target.value)}
+                        placeholder="Número..."
+                        className="h-7 text-xs w-28 px-2 bg-zinc-800 border-zinc-700 text-white"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveTicketNumberInGallery();
+                          if (e.key === 'Escape') {
+                            setEditingTicketNumberInGallery(false);
+                            setGalleryTicketNumberValue('');
+                          }
+                        }}
+                      />
+                      <Button
+                        size="icon"
+                        onClick={handleSaveTicketNumberInGallery}
+                        className="h-7 w-7 bg-green-600 hover:bg-green-700"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingTicketNumberInGallery(false);
+                          setGalleryTicketNumberValue('');
+                        }}
+                        className="h-7 w-7 text-white hover:bg-white/10"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      {selectedTicketForGallery.externalTicketId ? (
+                        <span className="text-blue-400 text-[11px] font-medium">{selectedTicketForGallery.externalTicketId}</span>
+                      ) : (
+                        <span className="text-red-400 text-[10px] font-bold tracking-widest">SEM Nº</span>
+                      )}
+                      <button
+                        onClick={() => {
+                          setEditingTicketNumberInGallery(true);
+                          setGalleryTicketNumberValue(selectedTicketForGallery.externalTicketId || '');
+                        }}
+                        className="text-zinc-500 hover:text-blue-400 transition-colors ml-1"
+                        title={selectedTicketForGallery.externalTicketId ? "Editar número" : "Adicionar número"}
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -891,7 +977,11 @@ export default function AdminPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setSelectedTicketForGallery(null)}
+                  onClick={() => {
+                    setSelectedTicketForGallery(null);
+                    setEditingTicketNumberInGallery(false);
+                    setGalleryTicketNumberValue('');
+                  }}
                   className="text-white hover:bg-white/10"
                 >
                   <X className="w-5 h-5" />
