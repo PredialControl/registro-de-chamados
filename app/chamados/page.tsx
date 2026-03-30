@@ -941,6 +941,8 @@ export default function ChamadosPage() {
   )).sort((a, b) => b.localeCompare(a)); // Ordem decrescente (mais recente primeiro)
 
   const isAdmin = user?.role === 'admin' || user?.role === 'building_admin';
+  // Perfis que podem editar status e inserir parecer do condomínio
+  const canEditStatusAndParecer = user?.role === 'admin' || user?.role === 'building_admin' || user?.role === 'user';
 
   if (isLoading || !user) {
     return (
@@ -1856,17 +1858,47 @@ export default function ChamadosPage() {
 
               {!isAdmin && (
                 <>
-                  {/* Status */}
+                  {/* Status - Editável para perfis simples (user), somente leitura para conselho */}
                   <div>
                     <label className="text-sm font-semibold text-foreground">Status</label>
-                    <div className="mt-1">
-                      <span className={cn(
-                        "inline-block px-3 py-1 rounded-full text-xs font-medium",
-                        STATUS_CONFIG[viewingTicket.status].color
-                      )}>
-                        {STATUS_CONFIG[viewingTicket.status].label}
-                      </span>
-                    </div>
+                    {canEditStatusAndParecer ? (
+                      <Select
+                        value={viewingTicket.status}
+                        onValueChange={(value) => {
+                          setViewingTicket({ ...viewingTicket, status: value as Ticket['status'] });
+                        }}
+                      >
+                        <SelectTrigger className={cn("h-10 text-sm mt-1", STATUS_CONFIG[viewingTicket.status].color)}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="z-[9999]">
+                          {viewingTicket.responsible === 'Condomínio' ? (
+                            <>
+                              <SelectItem value="aguardando_vistoria">Aguardando</SelectItem>
+                              <SelectItem value="em_andamento">Programado</SelectItem>
+                              <SelectItem value="concluido">Executado</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="aguardando_vistoria">Aguardando Vistoria</SelectItem>
+                              <SelectItem value="em_andamento">Programado</SelectItem>
+                              <SelectItem value="concluido">Executado</SelectItem>
+                              <SelectItem value="improcedente">Improcedente</SelectItem>
+                              <SelectItem value="f_indevido">Fechado Indevido</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="mt-1">
+                        <span className={cn(
+                          "inline-block px-3 py-1 rounded-full text-xs font-medium",
+                          STATUS_CONFIG[viewingTicket.status].color
+                        )}>
+                          {STATUS_CONFIG[viewingTicket.status].label}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -1883,6 +1915,28 @@ export default function ChamadosPage() {
                     </div>
                   </div>
 
+                  {/* Botão Salvar para perfis simples */}
+                  {canEditStatusAndParecer && (
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await dataService.updateTicket(viewingTicket.id, {
+                            status: viewingTicket.status,
+                          });
+                          toast.success('Status atualizado com sucesso!');
+                          setViewingTicket(null);
+                          loadTicketsForBuilding();
+                        } catch (error) {
+                          console.error('Erro ao atualizar:', error);
+                          toast.error('Erro ao atualizar status. Tente novamente.');
+                        }
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Salvar Status
+                    </Button>
+                  )}
                 </>
               )}
 
@@ -1893,7 +1947,7 @@ export default function ChamadosPage() {
                     <Clock className="w-4 h-4" />
                     Linha do Tempo do Chamado
                   </label>
-                  {isAdmin && (
+                  {canEditStatusAndParecer && (
                     <Button
                       size="sm"
                       onClick={() => setAddingUpdateToTicket(viewingTicket)}
@@ -2357,20 +2411,24 @@ export default function ChamadosPage() {
               {!newUpdateType ? (
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-foreground mb-2 block">
-                    Selecione o tipo de atualização:
+                    {isAdmin ? 'Selecione o tipo de atualização:' : 'Adicionar parecer do condomínio:'}
                   </label>
                   <div className="grid grid-cols-1 gap-3">
-                    <Button
-                      variant="outline"
-                      className="h-16 flex items-center justify-start gap-4 px-4 border-2 hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                      onClick={() => setNewUpdateType('construtora')}
-                    >
-                      <span className="text-3xl">🏗️</span>
-                      <div className="text-left">
-                        <p className="font-bold text-orange-600 dark:text-orange-400">Parecer da Construtora</p>
-                        <p className="text-xs text-muted-foreground">Retorno ou alegação da construtora</p>
-                      </div>
-                    </Button>
+                    {/* Parecer da Construtora - Somente Admin */}
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        className="h-16 flex items-center justify-start gap-4 px-4 border-2 hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                        onClick={() => setNewUpdateType('construtora')}
+                      >
+                        <span className="text-3xl">🏗️</span>
+                        <div className="text-left">
+                          <p className="font-bold text-orange-600 dark:text-orange-400">Parecer da Construtora</p>
+                          <p className="text-xs text-muted-foreground">Retorno ou alegação da construtora</p>
+                        </div>
+                      </Button>
+                    )}
+                    {/* Parecer do Condomínio - Todos que podem editar */}
                     <Button
                       variant="outline"
                       className="h-16 flex items-center justify-start gap-4 px-4 border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
@@ -2382,17 +2440,20 @@ export default function ChamadosPage() {
                         <p className="text-xs text-muted-foreground">Observação ou resposta do condomínio</p>
                       </div>
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="h-16 flex items-center justify-start gap-4 px-4 border-2 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                      onClick={() => setNewUpdateType('engenharia')}
-                    >
-                      <span className="text-3xl">⚙️</span>
-                      <div className="text-left">
-                        <p className="font-bold text-purple-600 dark:text-purple-400">Parecer da Engenharia</p>
-                        <p className="text-xs text-muted-foreground">Análise técnica ou avaliação</p>
-                      </div>
-                    </Button>
+                    {/* Parecer da Engenharia - Somente Admin */}
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        className="h-16 flex items-center justify-start gap-4 px-4 border-2 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                        onClick={() => setNewUpdateType('engenharia')}
+                      >
+                        <span className="text-3xl">⚙️</span>
+                        <div className="text-left">
+                          <p className="font-bold text-purple-600 dark:text-purple-400">Parecer da Engenharia</p>
+                          <p className="text-xs text-muted-foreground">Análise técnica ou avaliação</p>
+                        </div>
+                      </Button>
+                    )}
                   </div>
                 </div>
               ) : (
