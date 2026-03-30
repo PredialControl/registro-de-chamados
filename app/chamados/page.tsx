@@ -1684,6 +1684,20 @@ export default function ChamadosPage() {
                   <h3 className="text-sm font-bold text-foreground mb-3">📝 Editar Chamado</h3>
 
                   <div className="space-y-4">
+                    {/* Número do Chamado - Editável */}
+                    <div>
+                      <label className="text-sm font-semibold text-foreground">Número do Chamado</label>
+                      <Input
+                        type="text"
+                        value={viewingTicket.externalTicketId || ''}
+                        onChange={(e) => {
+                          setViewingTicket({ ...viewingTicket, externalTicketId: e.target.value });
+                        }}
+                        placeholder="Digite o número do chamado"
+                        className="h-10 text-sm mt-1 font-bold text-blue-600 dark:text-blue-400"
+                      />
+                    </div>
+
                     {/* Responsável */}
                     <div>
                       <label className="text-sm font-semibold text-foreground">Responsável</label>
@@ -1811,6 +1825,8 @@ export default function ChamadosPage() {
                           deadline: viewingTicket.deadline,
                           constructorReturn: updatedConstructorReturn,
                           engineeringOpinion: viewingTicket.engineeringOpinion,
+                          externalTicketId: viewingTicket.externalTicketId,
+                          isRegistered: !!viewingTicket.externalTicketId,
                         };
 
                         console.log('📤 DEBUG - Payload de atualização:', updatePayload);
