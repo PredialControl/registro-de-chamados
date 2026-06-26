@@ -54,75 +54,146 @@ export default function TicketPage() {
     loadBuildings();
   }, [user]);
 
-  const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      console.log('📸 Comprimindo imagem:', file.name, 'Tamanho:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+  // --- Conversão de HEIC/HEIF (iPhone) para JPEG ---------------------------
+  // iPhones salvam fotos em HEIC/HEIF por padrão (e Live Photos também). Nem o
+  // createImageBitmap nem o <img> decodificam esse formato na maioria dos
+  // navegadores (Android, desktop e até iPhone dentro de apps tipo WhatsApp/
+  // Chrome), o que fazia o app recusar a foto com "formato não suportado".
+  // Detectamos por tipo MIME, extensão e assinatura do arquivo e convertemos
+  // para JPEG ANTES de tentar decodificar.
+  const isHeic = async (file: File): Promise<boolean> => {
+    const type = (file.type || '').toLowerCase();
+    if (type.includes('heic') || type.includes('heif')) return true;
+    if (/\.(heic|heif)$/i.test(file.name || '')) return true;
+    // Assinatura ISO-BMFF: bytes 4-8 = "ftyp", marca em 8-12 é um brand HEIF.
+    try {
+      const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+      const ascii = (a: number, b: number) => String.fromCharCode(...head.slice(a, b));
+      if (ascii(4, 8) === 'ftyp') {
+        const brand = ascii(8, 12).toLowerCase();
+        if (['heic', 'heix', 'heif', 'mif1', 'msf1', 'hevc', 'hevx'].includes(brand)) {
+          return true;
+        }
+      }
+    } catch {
+      // se não der pra ler o cabeçalho, segue o fluxo normal
+    }
+    return false;
+  };
 
-      const reader = new FileReader();
+  const convertHeicToJpeg = async (file: File): Promise<File> => {
+    console.log('🍎 Foto HEIC/HEIF detectada, convertendo para JPEG:', file.name);
+    // import dinâmico: a lib (libheif via WASM) só carrega quando aparece um HEIC.
+    const { default: heic2any } = await import('heic2any');
+    const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+    const blob = Array.isArray(out) ? out[0] : out;
+    const newName = (file.name || 'foto').replace(/\.(heic|heif)$/i, '') + '.jpg';
+    console.log('✅ HEIC convertido para JPEG');
+    return new File([blob], newName, { type: 'image/jpeg' });
+  };
 
-      reader.onerror = (error) => {
-        console.error('❌ Erro ao ler arquivo:', error);
-        reject(new Error('Erro ao ler o arquivo da imagem'));
+  const compressImage = async (file: File): Promise<string> => {
+    console.log('📸 Comprimindo imagem:', file.name, 'Tamanho:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+
+    // iPhone (HEIC/HEIF) → converter para JPEG antes de decodificar.
+    if (await isHeic(file)) {
+      try {
+        file = await convertHeicToJpeg(file);
+      } catch (error) {
+        console.error('❌ Falha ao converter HEIC:', error);
+        throw new Error('Não foi possível converter a foto do iPhone (HEIC). Tente de novo ou envie em JPG.');
+      }
+    }
+
+    const maxSize = 1280; // lado maior em px (otimizado para mobile)
+
+    // Desenha a fonte (ImageBitmap ou <img>) num canvas já redimensionado e exporta comprimido.
+    const exportFromSource = (
+      source: CanvasImageSource,
+      srcWidth: number,
+      srcHeight: number
+    ): string => {
+      console.log('✅ Imagem decodificada. Dimensões:', srcWidth, 'x', srcHeight);
+
+      let width = srcWidth;
+      let height = srcHeight;
+
+      // Redimensionar se for muito grande
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = Math.round((height / width) * maxSize);
+          width = maxSize;
+        } else {
+          width = Math.round((width / height) * maxSize);
+          height = maxSize;
+        }
+        console.log('📏 Redimensionando para:', width, 'x', height);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Erro ao processar a imagem (contexto do canvas indisponível)');
+      }
+
+      ctx.drawImage(source, 0, 0, width, height);
+
+      // Comprimir para WebP (qualidade 0.7). Alguns navegadores (ex: Safari antigo) não
+      // suportam WebP no canvas e devolvem PNG silenciosamente -> nesse caso usamos JPEG.
+      let dataUrl = canvas.toDataURL('image/webp', 0.7);
+      if (!dataUrl.startsWith('data:image/webp')) {
+        console.warn('⚠️ WebP não suportado neste navegador, usando JPEG');
+        dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      }
+
+      const compressedSize = (dataUrl.length / 1024 / 1024).toFixed(2);
+      console.log('✅ Imagem comprimida. Tamanho final:', compressedSize + 'MB');
+      return dataUrl;
+    };
+
+    // Caminho preferido: createImageBitmap decodifica de forma nativa e leve em memória
+    // (evita a string base64 gigante + decodificação em resolução cheia que estouravam a
+    // memória do celular com fotos da câmera) e ainda respeita a orientação EXIF da foto.
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' } as ImageBitmapOptions);
+        try {
+          return exportFromSource(bitmap, bitmap.width, bitmap.height);
+        } finally {
+          bitmap.close?.();
+        }
+      } catch (error) {
+        console.warn('⚠️ createImageBitmap falhou, tentando fallback com <img>:', error);
+        // continua para o fallback abaixo
+      }
+    }
+
+    // Fallback: object URL + <img> (ainda evita a string base64 gigante do readAsDataURL)
+    return new Promise<string>((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = () => {
+        try {
+          resolve(exportFromSource(img, img.naturalWidth, img.naturalHeight));
+        } catch (error) {
+          console.error('❌ Erro ao processar imagem:', error);
+          reject(error instanceof Error ? error : new Error('Erro ao processar a imagem'));
+        } finally {
+          URL.revokeObjectURL(url);
+        }
       };
 
-      reader.onload = (e) => {
-        console.log('✅ Arquivo lido com sucesso');
-        const img = new Image();
-
-        img.onerror = (error) => {
-          console.error('❌ Erro ao carregar imagem:', error);
-          reject(new Error('Erro ao carregar a imagem'));
-        };
-
-        img.onload = () => {
-          try {
-            console.log('✅ Imagem carregada. Dimensões:', img.width, 'x', img.height);
-
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-
-            // Redimensionar se for muito grande (max 1280px - otimizado para mobile)
-            const maxSize = 1280;
-            if (width > maxSize || height > maxSize) {
-              if (width > height) {
-                height = (height / width) * maxSize;
-                width = maxSize;
-              } else {
-                width = (width / height) * maxSize;
-                height = maxSize;
-              }
-              console.log('📏 Redimensionando para:', width, 'x', height);
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-              console.error('❌ Não foi possível obter contexto 2d do canvas');
-              reject(new Error('Erro ao processar a imagem'));
-              return;
-            }
-
-            ctx.drawImage(img, 0, 0, width, height);
-
-            // Comprimir para WebP com qualidade 0.7 (reduz 60-70% do tamanho)
-            const compressedDataUrl = canvas.toDataURL('image/webp', 0.7);
-            const compressedSize = (compressedDataUrl.length / 1024 / 1024).toFixed(2);
-            console.log('✅ Imagem comprimida em WebP. Tamanho final:', compressedSize + 'MB');
-
-            resolve(compressedDataUrl);
-          } catch (error) {
-            console.error('❌ Erro ao processar imagem:', error);
-            reject(new Error('Erro ao processar a imagem: ' + (error as Error).message));
-          }
-        };
-
-        img.src = e.target?.result as string;
+      img.onerror = (error) => {
+        URL.revokeObjectURL(url);
+        console.error('❌ Erro ao carregar imagem:', error);
+        reject(new Error('Erro ao carregar a imagem (formato não suportado?)'));
       };
 
-      reader.readAsDataURL(file);
+      img.src = url;
     });
   };
 
@@ -383,7 +454,7 @@ export default function TicketPage() {
               {/* Input for gallery */}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,.heic,.heif,image/heic,image/heif"
                 multiple
                 className="hidden"
                 ref={galleryInputRef}
